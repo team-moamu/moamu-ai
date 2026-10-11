@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a locally testable Python prototype that designs photo-verifiable challenges and judges submitted images against frozen required conditions without making external AI API calls.
+**Goal:** Build a Python prototype that uses Gemini to design photo-verifiable challenges and judge submitted images against frozen required conditions, with deterministic offline unit tests and opt-in live integration tests.
 
-**Architecture:** Domain models and validation live in a small `moamu_ai` package. Challenge generation and image verification services depend on Protocol-based model ports, while pytest fakes provide deterministic model responses. Image validation is local and final verification status is calculated in application code rather than trusted to a model.
+**Architecture:** Domain models and validation live in a small `moamu_ai` package. Challenge generation and image verification services depend on Protocol-based model ports, while pytest fakes provide deterministic model responses. A Gemini Adapter uses structured outputs for both text and image analysis; image validation and final verdict calculation remain in application code.
 
-**Tech Stack:** Python 3.11+, Pydantic 2.x, Pillow, pytest
+**Tech Stack:** Python 3.11+, Pydantic 2.x, Pillow, pytest, google-genai, python-dotenv
 
 **Spec:** `docs/superpowers/specs/2026-10-12-ai-challenge-prototype-design.md`
 
 ## Global Constraints
 
-- Do not call OpenAI, Gemini, or any external network API.
+- Do not call external APIs during the default unit-test run; live Gemini tests require `RUN_GEMINI_INTEGRATION=1`.
 - Do not read, print, or commit `.env` or API key values.
 - Accept goal text only after trimming whitespace and only when its Python string length is 1–20 characters.
 - Successful challenge plans contain 2–4 required conditions and exactly 3 shooting guides.
@@ -42,11 +42,15 @@
 - `src/moamu_ai/challenge_service.py`: goal input validation and challenge-plan validation.
 - `src/moamu_ai/image_validation.py`: local image file validation.
 - `src/moamu_ai/verification_service.py`: condition response validation and final verdict calculation.
+- `src/moamu_ai/gemini_adapter.py`: Gemini structured-output calls for challenge generation and image verification.
+- `src/moamu_ai/settings.py`: safe environment loading and model configuration.
 - `tests/fakes.py`: deterministic fake model ports with call recording.
 - `tests/test_models.py`: schema invariants.
 - `tests/test_challenge_service.py`: challenge generation behavior.
 - `tests/test_image_validation.py`: image file validation.
 - `tests/test_verification_service.py`: condition matching and final verdict behavior.
+- `tests/test_gemini_adapter.py`: SDK-boundary unit tests with a mocked client.
+- `tests/integration/test_gemini_live.py`: opt-in live Gemini smoke tests using generated synthetic data.
 - `README.md`: local setup, test commands, examples, and future provider integration boundary.
 
 ### Task 1: Secure Python Project Scaffold
@@ -67,7 +71,7 @@ Create `.gitignore` entries for `.env`, `.env.*` with `!.env.example`, `.venv/`,
 
 - [ ] **Step 2: Add project metadata**
 
-Create `pyproject.toml` requiring Python `>=3.11`, Pydantic `>=2,<3`, Pillow `>=10,<13`, and a `test` optional dependency containing pytest `>=8,<10`. Configure pytest with `testpaths = ["tests"]` and `addopts = "-ra"`.
+Create `pyproject.toml` requiring Python `>=3.11`, Pydantic `>=2,<3`, Pillow `>=10,<13`, google-genai, and python-dotenv. Add a `test` optional dependency containing pytest `>=8,<10`. Configure pytest with `testpaths = ["tests"]`, `addopts = "-ra"`, and an `integration` marker.
 
 - [ ] **Step 3: Verify the secret file is ignored**
 
@@ -79,7 +83,7 @@ Expected: output names `.gitignore` and a matching `.env` rule without printing 
 
 Run: `python3 -m pip install -e '.[test]'`
 
-Expected: installation succeeds without an external AI SDK.
+Expected: installation succeeds with the official `google-genai` SDK and no OpenAI SDK.
 
 - [ ] **Step 5: Commit**
 
@@ -299,7 +303,58 @@ git add src/moamu_ai tests/fakes.py tests/test_verification_service.py
 git commit -m "feat: verify challenge proof conditions"
 ```
 
-### Task 6: Usage Documentation and Full Verification
+### Task 6: Gemini Provider Adapter and Live Smoke Tests
+
+**Files:**
+- Create: `src/moamu_ai/settings.py`
+- Create: `src/moamu_ai/gemini_adapter.py`
+- Modify: `src/moamu_ai/__init__.py`
+- Create: `tests/test_gemini_adapter.py`
+- Create: `tests/integration/__init__.py`
+- Create: `tests/integration/test_gemini_live.py`
+
+**Interfaces:**
+- Consumes: `GEMINI_API_KEY`, `gemini-3.1-flash-lite`, and the two model ports.
+- Produces: `GeminiChallengeModel` and `GeminiVerificationModel`.
+
+- [ ] **Step 1: Write failing settings and Adapter boundary tests**
+
+Test missing-key handling without printing the key, upward `.env` discovery, configured model selection, structured-output schema submission, inline image MIME/data submission, empty responses, invalid JSON, and SDK exceptions. Use a mocked SDK client; no network call is permitted in this test file.
+
+- [ ] **Step 2: Run Adapter unit tests to verify they fail**
+
+Run: `pytest tests/test_gemini_adapter.py -v`
+
+Expected: FAIL because settings and Gemini Adapters do not exist.
+
+- [ ] **Step 3: Implement settings and Gemini Adapters**
+
+Define `load_settings() -> Settings`, `GeminiChallengeModel`, and `GeminiVerificationModel`. Use `google.genai.Client`, `gemini-3.1-flash-lite`, Pydantic-derived JSON Schema, low/minimal thinking, and inline validated image bytes. Wrap configuration, SDK, refusal, empty-output, and parsing failures in domain errors without logging secrets.
+
+- [ ] **Step 4: Add opt-in live smoke tests**
+
+Mark tests with `@pytest.mark.integration` and skip unless `RUN_GEMINI_INTEGRATION=1`. Generate a simple 512×512 image with Pillow, call both public functions through real Gemini Adapters, and assert only schema invariants rather than a brittle exact semantic verdict.
+
+- [ ] **Step 5: Run Adapter unit tests**
+
+Run: `pytest tests/test_gemini_adapter.py -v`
+
+Expected: PASS without network access.
+
+- [ ] **Step 6: Run live Gemini smoke tests**
+
+Run: `RUN_GEMINI_INTEGRATION=1 pytest tests/integration/test_gemini_live.py -v -m integration`
+
+Expected: both live tests PASS and no key value appears in output.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/moamu_ai tests/test_gemini_adapter.py tests/integration
+git commit -m "feat: integrate Gemini challenge models"
+```
+
+### Task 7: Usage Documentation and Full Verification
 
 **Files:**
 - Create: `README.md`
@@ -312,7 +367,7 @@ git commit -m "feat: verify challenge proof conditions"
 
 - [ ] **Step 1: Document setup and usage**
 
-Document Python setup, `pip install -e '.[test]'`, `pytest`, both public function signatures, direct and substitute challenge examples, binary verdict mapping, and the future Provider Adapter boundary. State that `.env.example` contains names only and that a key exposed in chat or version control must be revoked.
+Document Python setup, `pip install -e '.[test]'`, offline `pytest`, opt-in Gemini integration tests, both public function signatures, direct and substitute challenge examples, binary verdict mapping, and the Provider Adapter boundary. State that `.env.example` contains names only and that a key exposed in chat or version control must be revoked.
 
 - [ ] **Step 2: Add safe environment template**
 
@@ -344,7 +399,7 @@ git add README.md .env.example
 git commit -m "docs: explain AI prototype usage"
 ```
 
-### Task 7: Branch Review and Pull Request
+### Task 8: Branch Review and Pull Request
 
 **Files:**
 - Modify: only files requiring fixes from review.
@@ -371,8 +426,8 @@ Expected: push succeeds using the user's existing Git credentials.
 
 - [ ] **Step 4: Create the pull request**
 
-Use authenticated GitHub CLI or an authenticated GitHub browser session. The PR body must summarize both functions, the no-network Fake model design, substitute verification policy, and exact verification commands/results.
+Use authenticated GitHub CLI or an authenticated GitHub browser session. The PR body must summarize both functions, offline Fake-based unit tests, the opt-in live Gemini Adapter, substitute verification policy, and exact verification commands/results.
 
 - [ ] **Step 5: Add a self-review comment**
 
-Post a PR comment listing reviewed areas, any findings and fixes, tests run, and residual limitations: no live provider adapter, no FastAPI route, and no image generation.
+Post a PR comment listing reviewed areas, any findings and fixes, tests run, and residual limitations: Gemini-only provider support, no FastAPI route, and no image generation.
