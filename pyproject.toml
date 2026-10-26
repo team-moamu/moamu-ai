@@ -26,6 +26,11 @@ dev = [
     "ruff>=0.11,<1.0",
 ]
 
+[project.scripts]
+moamu-ai = "moamu_ai.cli:main"
+moamu-evaluate = "moamu_ai.benchmark:main"
+moamu-compare-prompts = "moamu_ai.benchmark:compare_main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
