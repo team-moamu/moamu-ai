@@ -30,3 +30,13 @@ def test_macro_f1_includes_a_class_that_appears_only_in_predictions():
     )
 
     assert summary.macro_f1 == 1 / 3
+
+
+def test_class_rates_are_undefined_without_reference_examples_for_their_denominator():
+    positive_only = summarize_cases([("BOTTLE", "MET", "MET")])
+    negative_only = summarize_cases([("BOTTLE", "NOT_MET", "NOT_MET")])
+
+    assert positive_only.false_accept_rate is None
+    assert positive_only.false_reject_rate == 0.0
+    assert negative_only.false_accept_rate == 0.0
+    assert negative_only.false_reject_rate is None

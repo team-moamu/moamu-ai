@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from typing import Optional
 
 from moamu_ai.schemas import ConditionStatus
 
@@ -16,9 +17,9 @@ class ConditionMetrics:
     total_cases: int
     correct: int
     false_accepts: int
-    false_accept_rate: float
+    false_accept_rate: Optional[float]
     false_rejects: int
-    false_reject_rate: float
+    false_reject_rate: Optional[float]
     uncertain_predictions: int
     coverage: float
     accuracy: float
@@ -87,8 +88,8 @@ def _summarize(pairs: Iterable[StatusPair]) -> ConditionMetrics:
         accuracy=(correct / total) if total else 0.0,
         selective_accuracy=(accepted_correct / accepted) if accepted else 0.0,
         macro_f1=(sum(class_f1) / len(class_f1)) if class_f1 else 0.0,
-        false_accept_rate=(false_accepts / expected_not_met) if expected_not_met else 0.0,
-        false_reject_rate=(false_rejects / expected_met) if expected_met else 0.0,
+        false_accept_rate=(false_accepts / expected_not_met) if expected_not_met else None,
+        false_reject_rate=(false_rejects / expected_met) if expected_met else None,
         confusion_matrix=matrix,
     )
 
