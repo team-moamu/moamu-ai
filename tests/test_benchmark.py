@@ -49,6 +49,7 @@ def sample_case(image_path: str):
         "goal_template_code": "WATER_INTAKE",
         "dataset_name": "Open Images V7",
         "dataset_version": "v7",
+        "dataset_split": "validation",
         "dataset_image_id": "sample-image-id",
         "image_license": "CC BY 2.0 (verify per image)",
         "split": "dev",
@@ -111,6 +112,7 @@ def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Pat
     assert result["estimated_cost_usd"] is None
     assert result["metrics"]["by_condition"]["BOTTLE_VISIBLE"]["accuracy"] == 1.0
     assert result["image_calls"] == 1
+    assert result["cases"][0]["dataset_split"] == "validation"
     assert result["token_totals"] == {"prompt": 100, "output": 10, "total": 110}
     assert result["latency_ms"] == {"p50": 250, "p95": 250}
     assert len(result["cases"][0]["prompt_sha256"]) == 64

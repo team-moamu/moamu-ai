@@ -50,6 +50,7 @@ conditions to limit API calls. Store relative paths under `AI_IMAGE_ROOT`.
   "goal_template_code": "WATER_INTAKE",
   "dataset_name": "Open Images V7",
   "dataset_version": "v7",
+  "dataset_split": "validation",
   "dataset_image_id": "<image-id>",
   "image_license": "CC BY 2.0; per-image license verified",
   "image_source_url": "https://...",
@@ -66,8 +67,10 @@ conditions to limit API calls. Store relative paths under `AI_IMAGE_ROOT`.
 }
 ```
 
-Use synthetic placeholder IDs only in documentation. Do not score a real case until
-the image's exact public dataset ID and license have been checked.
+`dataset_split` records the source dataset's split. `split` records MOAMU's `dev`
+or `held_out` evaluation partition. Use synthetic placeholder IDs only in
+documentation. Do not score a real case until the image's exact public dataset ID
+and license have been checked.
 
 ## Metrics
 
@@ -76,6 +79,8 @@ the image's exact public dataset ID and license have been checked.
   `NOT_MET` examples.
 - False-reject rate: `MET` examples predicted `NOT_MET` divided by all scored
   `MET` examples.
+- If a run has no `NOT_MET` labels, false-accept rate is undefined and recorded as
+  `null`; if it has no `MET` labels, false-reject rate is `null`.
 - Coverage: predictions other than `UNCERTAIN` divided by all predictions.
 - Selective accuracy: correct predictions among non-`UNCERTAIN` predictions.
 - Report `UNCERTAIN` count/rate separately. Binary public labels cannot establish

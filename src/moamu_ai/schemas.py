@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -76,6 +76,7 @@ class BenchmarkCase(BaseModel):
     goal_template_code: str = Field(min_length=1, max_length=100)
     dataset_name: str = Field(min_length=1, max_length=200)
     dataset_version: str = Field(min_length=1, max_length=100)
+    dataset_split: Optional[str] = Field(default=None, max_length=100)
     dataset_image_id: str = Field(min_length=1, max_length=200)
     image_license: str = Field(min_length=1, max_length=500)
     image_source_url: str = Field(default="", max_length=2000)
