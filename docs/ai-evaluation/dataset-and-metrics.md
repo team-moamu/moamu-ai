@@ -25,15 +25,29 @@ source URL, license evidence, and label basis in the manifest.
 
 Source: [Open Images V7 facts, labels, and license](https://storage.googleapis.com/openimages/web/factsfigures_v7.html).
 
+### Curated six-challenge smoke set
+
+The current positive-only working set uses three manually selected Pexels photos
+per goal template to exercise the exact two-condition snapshots in the
+[`six-challenge evaluation record`](six-challenge-positive-smoke.md). It is a
+small smoke set, not a replacement for an open labeled dataset: each case uses
+`manual_review`, has only positive expected labels, and needs independent
+annotation before it can support a performance claim. Pexels images are kept in
+ignored local paths; manifests record source pages, creators, and the Pexels
+license. The Pexels license permits free use without attribution, but the source
+photos are not committed to this repository.
+
 ## Labeling protocol
 
 - `human_verified_positive` maps to expected `MET` for the specific observable
   condition represented by that label.
 - `human_verified_negative` maps to expected `NOT_MET` only when that exact class
   has an explicit verified negative label.
-- `manual_review` is for a trained human's MOAMU-specific condition label. Use
+- `manual_review` is for a reviewer-assigned MOAMU-specific condition label. Use
   expected `UNCERTAIN` for genuinely ambiguous/occluded cases; otherwise label
-  `MET` or `NOT_MET` and record the evidence.
+  `MET` or `NOT_MET` and record the evidence. The current Pexels smoke labels are
+  provisional single-pass visual reviews; obtain independent project annotation
+  before treating them as ground truth.
 - Missing annotations, weak machine-generated labels, and uncertain licensing are
   excluded from scored cases.
 - Split by image ID into `dev` and `held_out` before prompt iteration. Never tune a

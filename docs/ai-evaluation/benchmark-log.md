@@ -69,9 +69,41 @@ Gemini schema fields; those requests returned no model result and are not scored
 
 ## Current status
 
-- One labeled public-dataset smoke case has been run; the manifest currently has
-  only two positive object-presence labels.
+- One Open Images V7 object-presence case and 18 manually selected Pexels
+  positive photos have been evaluated with Gemini. The six-challenge results and
+  condition wording retest are recorded in
+  [six-challenge-positive-smoke.md](six-challenge-positive-smoke.md).
 - The benchmark runner defaults to dry-run and caps Gemini at six image calls per
   execution. It records no image bytes and keeps generated result files ignored.
-- More cases are needed, especially explicit negatives and manually labeled
-  ambiguous examples, before model comparison or PRD target claims are meaningful.
+- The six-challenge set contains only positive examples. More cases are needed,
+  especially explicit negatives and manually labeled ambiguous examples, before
+  false-accept metrics, model comparison, or PRD target claims are meaningful.
+
+## Run 2026-10-27 — Six challenge positive smoke set
+
+- Manifest: `data/evaluation/six-challenge-positive-20261027.jsonl` (18 cases,
+  36 manually reviewed positive condition labels). Original supplement wording is
+  preserved in `data/evaluation/six-challenge-positive-v1-20261027.jsonl`.
+- Source: 18 Pexels photos, resized to 640px and kept only in ignored local image
+  paths. The per-image creator, source page, license, and SHA-256 are recorded in
+  [the evaluation details](six-challenge-positive-smoke.md).
+- Provider/model: Gemini API / `gemini-3.5-flash-lite`.
+- Stable prompt: `photo-verification-v1`; the supplemental retest changed only
+  the supplement condition description.
+- Calls: 18 across three six-image runs, then 3 focused supplement retest calls;
+  21 total image calls, 42 condition predictions.
+- Initial result: 35/36 conditions `MET`, 1/36 `NOT_MET`, 0 `UNCERTAIN`. The
+  rejected condition asked for pills outside the container, but the positive
+  photo showed them inside a clear vial.
+- Retest: after changing the condition to include visible pills inside or
+  outside the container, the three supplement photos returned 6/6 `MET`.
+- Effective final positive set: 36/36 `MET`. This set has no negative or
+  uncertain examples, so false-accept rate is not measurable.
+- Tokens: 27,751 input; 1,366 output; 29,117 total across all 21 calls.
+- Estimated cost: `$0.0117403` at the current standard paid token prices; not a
+  billing receipt. Aggregate p50/p95 latency: `1,819.25 / 2,869.04 ms`.
+- Raw JSON outputs remain ignored under `data/evaluation/results/`; run IDs and
+  per-case outcomes are preserved in the evaluation details page.
+- Decision: Gemini passed this curated positive smoke set after one condition
+  phrase was clarified. This does not establish general performance or satisfy
+  the false-accept target; add hard negatives and ambiguous examples next.

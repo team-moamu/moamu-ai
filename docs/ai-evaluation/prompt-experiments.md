@@ -28,7 +28,8 @@ provider output.
 
 | Version | Model pinned | Single change from prior version | Dev cases | Status flip rate | False-accept delta | `UNCERTAIN` delta | Qualitative notes | Decision |
 |---|---|---|---:|---:|---:|---:|---|---|
-| `photo-verification-v1` | Pending | Initial version | 0 | — | — | — | No benchmark run | Pending |
+| `photo-verification-v1` | `gemini-3.5-flash-lite` | Initial version | 18 | — | — | 0 | 35/36 MET on initial positive labels; one supplement condition rejected | Candidate passed positive smoke set after a condition wording correction; needs negatives |
+| Supplement condition text v2 | `gemini-3.5-flash-lite` | Clarified that tablets/capsules may be visible inside or outside the container | 3 cases / 6 conditions | 16.7% (1/6) | — | 0 | `SUPPLEMENT_INTAKE/16051949` changed from NOT_MET to MET; same image and model | Keep clarified condition; add hard negatives before broader claims |
 
 For a prompt sensitivity comparison, match results by `(case_id,
 challenge_condition_id)`. Calculate status flip rate as changed predictions divided
