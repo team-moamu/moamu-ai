@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from moamu_ai.schemas import (
+    ConditionResult,
     ConditionSnapshot,
     ConditionStatus,
     PhotoVerificationRequest,
@@ -77,3 +78,8 @@ def test_response_contains_only_condition_identity_and_status():
         ConditionStatus.NOT_MET,
         ConditionStatus.UNCERTAIN,
     }
+
+
+def test_condition_result_still_rejects_non_positive_ids():
+    with pytest.raises(ValidationError, match="challenge_condition_id must be positive"):
+        ConditionResult(challenge_condition_id=0, status=ConditionStatus.MET)

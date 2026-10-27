@@ -54,7 +54,7 @@ class GeminiPhotoJudge:
                 contents=[prompt, image],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=PhotoVerificationResponse,
+                    response_schema=_gemini_response_schema(),
                     temperature=0,
                     max_output_tokens=256,
                 ),
@@ -85,3 +85,17 @@ class GeminiPhotoJudge:
                 total_tokens=total_tokens,
             ),
         )
+
+
+def _gemini_response_schema() -> dict:
+    """Build Gemini's supported schema subset from the stricter API models."""
+    schema = PhotoVerificationResponse.model_json_schema()
+    pending = [schema]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, dict):
+            current.pop("additionalProperties", None)
+            pending.extend(current.values())
+        elif isinstance(current, list):
+            pending.extend(current)
+    return schema

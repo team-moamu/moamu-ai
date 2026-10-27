@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ConditionStatus(str, Enum):
@@ -40,8 +40,15 @@ class PhotoVerificationRequest(BaseModel):
 class ConditionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    challenge_condition_id: int = Field(gt=0)
+    challenge_condition_id: int
     status: ConditionStatus
+
+    @field_validator("challenge_condition_id")
+    @classmethod
+    def validate_positive_condition_id(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("challenge_condition_id must be positive")
+        return value
 
 
 class PhotoVerificationResponse(BaseModel):

@@ -1,10 +1,14 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from google.genai._transformers import t_schema
 from pydantic import SecretStr
 
-from moamu_ai.providers.gemini import GeminiPhotoJudge
-from moamu_ai.schemas import ConditionSnapshot, ConditionStatus
+from moamu_ai.providers.gemini import GeminiPhotoJudge, _gemini_response_schema
+from moamu_ai.schemas import (
+    ConditionSnapshot,
+    ConditionStatus,
+)
 
 
 class FakeGeminiModels:
@@ -76,3 +80,11 @@ def test_gemini_provider_requires_the_exact_configured_api_key_name():
         assert "GEMINI_TOKEN_API_KEY" in str(error)
     else:
         raise AssertionError("missing key should prevent a live provider")
+
+
+def test_gemini_structured_response_schema_is_supported_by_the_sdk():
+    schema = _gemini_response_schema()
+    gemini_schema = t_schema(None, schema)
+
+    assert gemini_schema.additional_properties is None
+    assert gemini_schema.properties["results"].items.additional_properties is None
