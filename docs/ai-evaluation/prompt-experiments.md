@@ -12,7 +12,7 @@
 
 ## `photo-verification-v1`
 
-**Status:** Initial candidate in `src/moamu_ai/prompts.py`; not yet benchmarked.
+**Status:** Historical prompt used for the initial evaluation; superseded by v2.
 **Output:** JSON with `results[]`, each containing only `challenge_condition_id`
 and one of `MET`, `NOT_MET`, `UNCERTAIN`.
 
@@ -23,6 +23,22 @@ Exact stable instruction text (the conditions JSON is appended for each case):
 The appended condition array includes the snapshot ID, code, type, description,
 required flag, and sort order. The API layer validates IDs and status values after
 provider output.
+
+## `photo-verification-v2`
+
+**Status:** Current API prompt; not yet benchmarked.
+**Single change:** Send only `challenge_condition_id` and the natural-language
+`description` to the model. `code`, `condition_type`, `required`, and
+`sort_order` remain part of the backend request contract but are not needed to
+judge the photo. The API still returns one status per supplied condition ID.
+
+The exact instruction text is unchanged from v1. The serialized conditions are
+now limited to the ID and description, so this version requires a fresh benchmark
+before its results can be compared with v1.
+
+The 2026-10-27 positive smoke manifests predate the backend taxonomy and retain
+the synthetic `OBJECT_VISIBLE` / `ACTION_VISIBLE` labels used in those runs. They
+are not the backend's condition types; v2 does not send those fields to the model.
 
 ## Experiment table
 

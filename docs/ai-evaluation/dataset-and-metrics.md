@@ -55,7 +55,7 @@ photos are not committed to this repository.
 
 ## JSONL manifest fields
 
-Each non-empty line is one image request. One request can score two or three
+Each non-empty line is one image request. One request can score two to five
 conditions to limit API calls. Store relative paths under `AI_IMAGE_ROOT`.
 
 ```json
@@ -71,8 +71,8 @@ conditions to limit API calls. Store relative paths under `AI_IMAGE_ROOT`.
   "split": "dev",
   "image_path": "open-images-v7/<image-id>.jpg",
   "conditions": [
-    {"challenge_condition_id": 101, "code": "BOTTLE_VISIBLE", "condition_type": "OBJECT_VISIBLE", "description": "A water bottle is visible", "required": true, "sort_order": 1},
-    {"challenge_condition_id": 102, "code": "DRINKING_VISIBLE", "condition_type": "ACTION_VISIBLE", "description": "A person is visibly drinking water", "required": true, "sort_order": 2}
+    {"challenge_condition_id": 101, "code": "C1", "condition_type": "OBJECT_PRESENT", "description": "A water bottle is visible", "required": true, "sort_order": 1},
+    {"challenge_condition_id": 102, "code": "C2", "condition_type": "ACTIVITY_IN_PROGRESS", "description": "A person is visibly drinking water", "required": true, "sort_order": 2}
   ],
   "expected_results": [
     {"challenge_condition_id": 101, "status": "MET", "label_basis": "human_verified_positive"},

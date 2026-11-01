@@ -29,7 +29,7 @@ The six-challenge smoke run used three batches of six images and one focused
 three-image wording retest. Its manifest and findings are in
 [six-challenge-positive-smoke.md](six-challenge-positive-smoke.md).
 
-Each image case evaluates two or three conditions in one model request. Run output
+Each image case evaluates two to five conditions in one model request. Run output
 is written to `data/evaluation/results/`, which is ignored by Git. Image files are
 kept outside the repository under the configured `AI_IMAGE_ROOT`; the manifest
 stores source IDs, labels, and licenses.

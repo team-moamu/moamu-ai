@@ -16,6 +16,10 @@ for user-facing explanations.
 
 ## `POST /internal/photo-verifications`
 
+The backend sends the active challenge's condition snapshots. The AI endpoint
+does not infer condition types or create condition codes; it judges each supplied
+description and returns its status.
+
 Request body:
 
 ```json
@@ -23,37 +27,76 @@ Request body:
   "image_path": "attempts/123/proof.jpg",
   "conditions": [
     {
-      "challenge_condition_id": 101,
-      "code": "BOTTLE_VISIBLE",
-      "condition_type": "OBJECT_VISIBLE",
-      "description": "A water bottle is visible",
-      "required": true,
+      "challenge_condition_id": 301,
+      "code": "C1",
+      "condition_type": "OBJECT_PRESENT",
+      "description": "책 또는 학습 노트가 사진에 보여야 한다",
+      "required": "Y",
       "sort_order": 1
     },
     {
-      "challenge_condition_id": 102,
-      "code": "DRINKING_VISIBLE",
-      "condition_type": "ACTION_VISIBLE",
-      "description": "A person is visibly drinking water",
-      "required": true,
+      "challenge_condition_id": 302,
+      "code": "C2",
+      "condition_type": "HANDWRITTEN_RECORD",
+      "description": "직접 작성한 학습 메모가 사진에서 식별되어야 한다",
+      "required": "Y",
       "sort_order": 2
+    },
+    {
+      "challenge_condition_id": 303,
+      "code": "C3",
+      "condition_type": "RESULT_OUTPUT",
+      "description": "학습한 내용을 정리한 요약문 또는 문제 풀이 결과가 사진에 보여야 한다",
+      "required": "Y",
+      "sort_order": 3
+    },
+    {
+      "challenge_condition_id": 304,
+      "code": "C4",
+      "condition_type": "PLACE",
+      "description": "학습 자료를 놓은 책상이나 학습 공간이 사진에서 확인되어야 한다",
+      "required": "Y",
+      "sort_order": 4
+    },
+    {
+      "challenge_condition_id": 305,
+      "code": "C5",
+      "condition_type": "DATE_VISIBLE",
+      "description": "학습 기록에 적힌 날짜가 사진에서 식별되어야 한다",
+      "required": "N",
+      "sort_order": 5
     }
   ]
 }
 ```
 
-Exactly two or three condition snapshots are accepted; at least two must be
-required. `challenge_condition_id` maps directly to the ERD snapshot/result rows.
+The sample above is the study template (`goal_template_id=3`). The same field
+shape can be used for all six challenge templates, while each template supplies
+its own condition rows and descriptions. Two to five condition snapshots are
+accepted; at least two must be required.
+`required` accepts the backend's `Y` / `N` values (evaluation manifests may use
+booleans). The backend's template seed uses `goal_template_condition_id`, but a
+verification request must use the active challenge snapshot's
+`challenge_condition_id`, which maps to `verification_check`. The template ID,
+`goal_template_id`, and audit timestamp are not needed by the AI endpoint.
+The supported `condition_type` values are `OBJECT_PRESENT`,
+`ACTIVITY_IN_PROGRESS`, `HANDWRITTEN_RECORD`, `SCREEN_RECORD`, `RESULT_OUTPUT`,
+`PLACE`, and `DATE_VISIBLE`; `DATE_VISIBLE` should be sent with `required: "N"`.
+
 Statuses are returned in input order. The service rejects provider output with
-missing, extra, or duplicate condition IDs.
+missing, extra, or duplicate condition IDs. The backend remains responsible for
+combining required-condition results into the overall verification state.
 
 Success response:
 
 ```json
 {
   "results": [
-    {"challenge_condition_id": 101, "status": "MET"},
-    {"challenge_condition_id": 102, "status": "UNCERTAIN"}
+    {"challenge_condition_id": 301, "status": "MET"},
+    {"challenge_condition_id": 302, "status": "MET"},
+    {"challenge_condition_id": 303, "status": "UNCERTAIN"},
+    {"challenge_condition_id": 304, "status": "MET"},
+    {"challenge_condition_id": 305, "status": "NOT_MET"}
   ]
 }
 ```
@@ -79,10 +122,12 @@ authentication before exposure.
 
 ## Model input/output
 
-The provider sees the image plus each supplied condition ID, code, type, and
-description. Prompt version `photo-verification-v1` asks the model to abstain with
-`UNCERTAIN` where visual evidence is unclear. Gemini and Ollama use constrained
-JSON output; the service validates provider output again before returning it.
+The provider sees the image plus each supplied condition ID and natural-language
+description. It does not receive database codes, condition types, required flags,
+or sort order. Prompt version `photo-verification-v2` asks the model to abstain
+with `UNCERTAIN` where visual evidence is unclear. Gemini and Ollama use
+constrained JSON output; the service validates provider output again before
+returning it.
 
 FastAPI request/response models follow the official [request body](https://fastapi.tiangolo.com/tutorial/body/)
 pattern. Gemini uses the official [image input](https://ai.google.dev/gemini-api/docs/image-understanding)
