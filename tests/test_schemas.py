@@ -14,14 +14,14 @@ def condition(condition_id: int) -> ConditionSnapshot:
     return ConditionSnapshot(
         challenge_condition_id=condition_id,
         code=f"condition_{condition_id}",
-        condition_type="OBJECT_VISIBLE",
+        condition_type="OBJECT_PRESENT",
         description=f"Object {condition_id} is visible",
-        required=True,
+        required="Y",
         sort_order=condition_id,
     )
 
 
-def test_request_accepts_two_or_three_conditions_and_rejects_duplicate_ids():
+def test_request_accepts_two_to_five_conditions_and_rejects_duplicate_ids():
     request = PhotoVerificationRequest(
         image_path="proof.jpg",
         conditions=[condition(1), condition(2)],
@@ -35,8 +35,8 @@ def test_request_accepts_two_or_three_conditions_and_rejects_duplicate_ids():
         )
 
 
-@pytest.mark.parametrize("count", [1, 4])
-def test_request_requires_two_or_three_conditions(count: int):
+@pytest.mark.parametrize("count", [1, 6])
+def test_request_requires_two_to_five_conditions(count: int):
     with pytest.raises(ValidationError):
         PhotoVerificationRequest(
             image_path="proof.jpg",
@@ -45,7 +45,7 @@ def test_request_requires_two_or_three_conditions(count: int):
 
 
 def test_request_requires_at_least_two_required_conditions():
-    optional_condition = condition(2).model_copy(update={"required": False})
+    optional_condition = condition(2).model_copy(update={"required": "N"})
 
     with pytest.raises(ValidationError, match="at least two conditions must be required"):
         PhotoVerificationRequest(

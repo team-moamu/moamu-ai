@@ -34,16 +34,16 @@ def make_request(image_path: str) -> PhotoVerificationRequest:
         conditions=[
             ConditionSnapshot(
                 challenge_condition_id=10,
-                code="OBJECT_VISIBLE",
-                condition_type="OBJECT_VISIBLE",
+                code="C1",
+                condition_type="OBJECT_PRESENT",
                 description="A water bottle is visible",
                 required=True,
                 sort_order=1,
             ),
             ConditionSnapshot(
                 challenge_condition_id=11,
-                code="ACTION_VISIBLE",
-                condition_type="ACTION_VISIBLE",
+                code="C2",
+                condition_type="ACTIVITY_IN_PROGRESS",
                 description="The person is drinking water",
                 required=True,
                 sort_order=2,

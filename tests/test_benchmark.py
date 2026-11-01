@@ -58,7 +58,7 @@ def sample_case(image_path: str):
             {
                 "challenge_condition_id": 1,
                 "code": "BOTTLE_VISIBLE",
-                "condition_type": "OBJECT_VISIBLE",
+                "condition_type": "OBJECT_PRESENT",
                 "description": "A water bottle is visible",
                 "required": True,
                 "sort_order": 1,
@@ -66,7 +66,7 @@ def sample_case(image_path: str):
             {
                 "challenge_condition_id": 2,
                 "code": "DRINKING_VISIBLE",
-                "condition_type": "ACTION_VISIBLE",
+                "condition_type": "ACTIVITY_IN_PROGRESS",
                 "description": "A person is visibly drinking water",
                 "required": True,
                 "sort_order": 2,

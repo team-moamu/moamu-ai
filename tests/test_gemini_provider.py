@@ -45,7 +45,7 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
         ConditionSnapshot(
             challenge_condition_id=1,
             code="WATER_BOTTLE",
-            condition_type="OBJECT_VISIBLE",
+            condition_type="OBJECT_PRESENT",
             description="A water bottle is visible",
             required=True,
             sort_order=1,
@@ -53,7 +53,7 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
         ConditionSnapshot(
             challenge_condition_id=2,
             code="DRINKING",
-            condition_type="ACTION_VISIBLE",
+            condition_type="ACTIVITY_IN_PROGRESS",
             description="The person is drinking",
             required=True,
             sort_order=2,

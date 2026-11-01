@@ -17,22 +17,28 @@ class ConditionSnapshot(BaseModel):
     code: str = Field(min_length=1, max_length=100)
     condition_type: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=1000)
-    required: bool = True
+    # The backend's CHAR(1) column is sent as Y/N. Bool is also accepted for
+    # evaluation manifests and existing local callers.
+    required: bool | Literal["Y", "N"] = True
     sort_order: int = Field(ge=0)
+
+    @property
+    def is_required(self) -> bool:
+        return self.required is True or self.required == "Y"
 
 
 class PhotoVerificationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     image_path: str = Field(min_length=1, max_length=4096)
-    conditions: list[ConditionSnapshot] = Field(min_length=2, max_length=3)
+    conditions: list[ConditionSnapshot] = Field(min_length=2, max_length=5)
 
     @model_validator(mode="after")
     def validate_condition_ids(self):
         identifiers = [item.challenge_condition_id for item in self.conditions]
         if len(set(identifiers)) != len(identifiers):
             raise ValueError("challenge_condition_id values must be unique")
-        if sum(1 for item in self.conditions if item.required) < 2:
+        if sum(1 for item in self.conditions if item.is_required) < 2:
             raise ValueError("at least two conditions must be required")
         return self
 
@@ -54,7 +60,7 @@ class ConditionResult(BaseModel):
 class PhotoVerificationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    results: list[ConditionResult] = Field(min_length=2, max_length=3)
+    results: list[ConditionResult] = Field(min_length=2, max_length=5)
 
 
 class ExpectedConditionResult(BaseModel):
@@ -82,8 +88,8 @@ class BenchmarkCase(BaseModel):
     image_source_url: str = Field(default="", max_length=2000)
     split: Literal["dev", "held_out"]
     image_path: str = Field(min_length=1, max_length=4096)
-    conditions: list[ConditionSnapshot] = Field(min_length=2, max_length=3)
-    expected_results: list[ExpectedConditionResult] = Field(min_length=1, max_length=3)
+    conditions: list[ConditionSnapshot] = Field(min_length=2, max_length=5)
+    expected_results: list[ExpectedConditionResult] = Field(min_length=1, max_length=5)
 
     @model_validator(mode="after")
     def validate_expected_results(self):

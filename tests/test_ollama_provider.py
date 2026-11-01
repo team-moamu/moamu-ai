@@ -40,7 +40,7 @@ def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: P
         ConditionSnapshot(
             challenge_condition_id=1,
             code="WATER_BOTTLE",
-            condition_type="OBJECT_VISIBLE",
+            condition_type="OBJECT_PRESENT",
             description="A bottle is visible",
             required=True,
             sort_order=1,
@@ -48,7 +48,7 @@ def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: P
         ConditionSnapshot(
             challenge_condition_id=2,
             code="DRINKING",
-            condition_type="ACTION_VISIBLE",
+            condition_type="ACTIVITY_IN_PROGRESS",
             description="A drinking action is visible",
             required=True,
             sort_order=2,

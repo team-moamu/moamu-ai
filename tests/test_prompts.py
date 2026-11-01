@@ -8,7 +8,7 @@ def test_prompt_is_versioned_and_requests_abstention_for_ambiguous_images():
             ConditionSnapshot(
                 challenge_condition_id=1,
                 code="WATER_BOTTLE",
-                condition_type="OBJECT_VISIBLE",
+                condition_type="OBJECT_PRESENT",
                 description="물병이 보인다",
                 required=True,
                 sort_order=1,
@@ -16,7 +16,7 @@ def test_prompt_is_versioned_and_requests_abstention_for_ambiguous_images():
             ConditionSnapshot(
                 challenge_condition_id=2,
                 code="DRINKING",
-                condition_type="ACTION_VISIBLE",
+                condition_type="ACTIVITY_IN_PROGRESS",
                 description="물을 마시는 행동이 보인다",
                 required=True,
                 sort_order=2,

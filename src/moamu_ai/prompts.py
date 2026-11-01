@@ -3,7 +3,7 @@ from collections.abc import Iterable
 
 from moamu_ai.schemas import ConditionSnapshot
 
-PROMPT_VERSION = "photo-verification-v1"
+PROMPT_VERSION = "photo-verification-v2"
 VERIFICATION_INSTRUCTION = (
     "Evaluate the attached photo against each supplied condition independently. "
     "Return one result for every supplied challenge_condition_id, exactly once. "
@@ -20,11 +20,7 @@ def build_verification_prompt(conditions: Iterable[ConditionSnapshot]) -> str:
     condition_data = [
         {
             "challenge_condition_id": item.challenge_condition_id,
-            "code": item.code,
-            "condition_type": item.condition_type,
             "description": item.description,
-            "required": item.required,
-            "sort_order": item.sort_order,
         }
         for item in conditions
     ]
