@@ -1,45 +1,34 @@
-# AI photo-verification evaluation
+# AI 사진 판정 평가 안내
 
-This directory is the maintained experiment record while the supplied Notion page
-is not visible to the connected Notion integration. The page fetch returned 404,
-so results are kept in Markdown and machine-readable JSON locally. Recheck Notion
-access before moving records there.
+연결된 Notion 페이지를 읽을 수 없어(404) 실험 기록을 Markdown 문서와 JSON 파일로 저장하고 있습니다. Notion 접근이 가능해지면 기록을 옮길 수 있도록 다시 확인합니다.
 
-## Files
+## 문서 목록
 
-- [Model selection](model-selection.md): candidates, comparison method, cost controls.
-- [Prompt experiments](prompt-experiments.md): versioned prompt and sensitivity log.
-- [Dataset and metrics](dataset-and-metrics.md): public data sources, labels, six goal types.
-- [Six-category quantitative evaluation plan](six-category-quantitative-evaluation-plan.md): additional image sources, labeling protocol, sample size, metrics, and prompt-tuning decision gates.
-- [Six-category v2/v4 pilot report](six-category-v2-pilot-20261102.md): 30 Pexels cases, Gemini results, one prompt-tuning loop, and the next evaluation gaps.
-- [Benchmark run log](benchmark-log.md): durable record template and current status.
-- [Six-challenge positive smoke evaluation](six-challenge-positive-smoke.md): curated image sources, two conditions per challenge, Gemini results, and limitations.
-- [API contract](api-contract.md): internal endpoint contract and error mapping.
+- [모델 선택](model-selection.md): 후보 모델, 비교 방법, 비용 관리 기준
+- [프롬프트 실험 기록](prompt-experiments.md): 프롬프트 버전과 민감도 비교 기록
+- [데이터셋과 지표](dataset-and-metrics.md): 공개 데이터 출처, 라벨, 6개 도전 유형
+- [6개 도전 정량평가 계획](six-category-quantitative-evaluation-plan.md): 이미지 추가 수집, 라벨 검수, 표본 수, 지표, 프롬프트 조정 기준
+- [6개 도전 v2/v4 파일럿 보고서](six-category-v2-pilot-20261102.md): Pexels 사진 30장 평가, Gemini 결과, 프롬프트 실험과 남은 검증 항목
+- [벤치마크 실행 기록](benchmark-log.md): 실행 결과를 기록하는 양식과 최신 진행 상태
+- [6개 도전 긍정 사진 스모크 테스트](six-challenge-positive-smoke.md): 이미지 출처, 도전별 조건 2개, Gemini 결과와 한계
+- [API 계약](api-contract.md): 내부 엔드포인트 요청·응답 형식과 오류 코드
 
-## Run a benchmark
+## 평가 실행
 
-The runner is dry-run by default. A live Gemini run requires `--execute`, reads
-`GEMINI_TOKEN_API_KEY` from `.env`, and is capped at six image cases per run. Tests
-use fake providers and do not make Gemini requests.
+평가 실행기는 기본적으로 실제 모델을 호출하지 않는 미리보기 모드로 동작합니다. Gemini를 실제 호출하려면 `--execute`를 지정해야 합니다. API 키는 `.env`의 `GEMINI_TOKEN_API_KEY`에서 읽으며, 한 번 실행할 때 최대 이미지 6장까지 처리합니다. 테스트는 가짜 모델을 사용하므로 Gemini API를 호출하지 않습니다.
 
 ```bash
+# 실제 모델 호출 없이 매니페스트와 실행 설정 확인
 moamu-evaluate --manifest data/evaluation/manifest.jsonl --provider gemini --limit 6
+
+# Gemini를 실제 호출해 최대 6개 사례 평가
 moamu-evaluate --manifest data/evaluation/manifest.jsonl --provider gemini --limit 6 --execute
 ```
 
-The six-challenge smoke run used three batches of six images and one focused
-three-image wording retest. Its manifest and findings are in
-[six-challenge-positive-smoke.md](six-challenge-positive-smoke.md).
+6개 도전 긍정 사진 스모크 테스트는 6장씩 세 번 실행한 뒤, 조건 설명을 집중 재시험하기 위해 3장을 추가로 실행했습니다. 매니페스트와 결과는 [스모크 테스트 기록](six-challenge-positive-smoke.md)에 있습니다.
 
-The 2026-11-02 prompt comparison is recorded in
-[six-category-v2-pilot-20261102.md](six-category-v2-pilot-20261102.md). It compares
-`photo-verification-v2` and `photo-verification-v4` on the same 30 development
-photos; the raw model outputs remain ignored under `data/evaluation/results/`.
+2026-11-02 프롬프트 비교 결과는 [6개 도전 파일럿 보고서](six-category-v2-pilot-20261102.md)에 기록했습니다. 같은 개발용 사진 30장으로 `photo-verification-v2`와 `photo-verification-v4`를 비교했습니다. 모델의 원본 응답 파일은 `data/evaluation/results/` 아래에서 Git에 포함하지 않고 관리합니다.
 
-Each image case evaluates two to five conditions in one model request. Run output
-is written to `data/evaluation/results/`, which is ignored by Git. Image files are
-kept outside the repository under the configured `AI_IMAGE_ROOT`; the manifest
-stores source IDs, labels, and licenses.
+사진 사례마다 조건 2~5개를 한 번의 모델 요청으로 평가합니다. 실행 결과는 Git에서 제외되는 `data/evaluation/results/`에 저장합니다. 이미지 파일은 저장소 밖의 `AI_IMAGE_ROOT` 경로에 두며, 매니페스트에는 출처 ID·라벨·라이선스를 기록합니다.
 
-Gemini calls require the explicit `--execute` flag so offline test loops cannot
-spend the user's API budget. The runner limits each live execution to six images.
+`--execute`를 지정하지 않으면 Gemini를 호출하지 않습니다. 실제 실행은 한 번에 최대 6장으로 제한되지만, 여러 번 실행할 때의 누적 비용을 자동으로 제한하지는 않습니다.
