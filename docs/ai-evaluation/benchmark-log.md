@@ -71,12 +71,11 @@ Gemini schema fields; those requests returned no model result and are not scored
 
 - One Open Images V7 object-presence case, 18 manually selected Pexels positive
   photos, and a 30-photo six-category v2 development baseline have been evaluated
-  with Gemini. The latest six-category pilot adds two negative condition labels
-  per category, but has no held-out split or independent double annotation.
+  with Gemini. The v3 supplement retest is recorded below.
 - The benchmark runner defaults to dry-run and caps Gemini at six image calls per
   execution. It records no image bytes and keeps generated result files ignored.
-- The current false-accept result is diagnostic only and does not establish the
-  PRD target.
+- The pilot has only two negative labels per category and no held-out split or
+  independent double annotation, so its false-accept result is diagnostic only.
 
 ## Run 2026-10-27 — Six challenge positive smoke set
 
@@ -107,7 +106,7 @@ Gemini schema fields; those requests returned no model result and are not scored
   phrase was clarified. This does not establish general performance or satisfy
   the false-accept target; add hard negatives and ambiguous examples next.
 
-## Run 2026-11-02 — Six-category v2 baseline
+## Run 2026-11-02 — Six-category v2 baseline and v3 retest
 
 - Manifest: `data/evaluation/six-challenge-v2-pilot-20261102.jsonl` (30 photos,
   60 condition labels; 18 prior positive photos and 12 newly sourced mixed
@@ -116,10 +115,13 @@ Gemini schema fields; those requests returned no model result and are not scored
   `NOT_MET` condition label, assigned by one manual reviewer.
 - Provider/model: Gemini API / `gemini-3.5-flash-lite`; `google-genai 1.75.0`,
   Python `3.13.5`.
-- Prompt: `photo-verification-v2`; 30 image calls, 60 condition predictions.
-- Results: 57/60 predictions match (95.0%); false accepts 1/12 negative labels
-  (8.3%); false rejects 0/48 positive labels; `UNCERTAIN` 2/60.
-- Tokens: `38,000 / 2,036` input/output; estimated cost `$0.0164900`.
-- Decision: this development baseline exposed a supplement gummy false accept.
-  It is a diagnostic result only; each category has two negative labels and the
-  study action label needs independent review.
+- v2 baseline: 30 calls; 57/60 predictions match (95.0%); false accepts 1/12
+  negative labels (8.3%); `UNCERTAIN` 2/60. Tokens `38,000 / 2,036`
+  input/output; estimated cost `$0.0164900`.
+- v3 targeted retest: two supplement photos, four condition predictions. The
+  opaque-container result changed from `UNCERTAIN` to `NOT_MET`, but the gummy
+  false accept remained. Tokens `2,685 / 138`; estimated cost `$0.0011505`.
+- Decision: do not retain v3. The broad exact-evidence instruction did not fix
+  the observed form confusion, so the next experiment should test an explicit
+  form distinction. Results remain diagnostic because the sample is small and
+  labels have not been independently reviewed.

@@ -31,6 +31,18 @@
 
 2026-10-27 긍정 스모크 매니페스트는 백엔드 조건 분류가 확정되기 전에 만들어져 `OBJECT_VISIBLE` / `ACTION_VISIBLE`이라는 내부 예시 값을 사용한다. 이 값들은 백엔드의 실제 조건 유형이 아니며, v2에서는 모델에 전달하지 않는다.
 
+## `photo-verification-v3`
+
+**상태:** 탐색적 튜닝 시도이며 채택하지 않았다.
+
+**v2에서 바뀐 점:** 조건에 구체적으로 적힌 물체·행동·속성이 사진에 보여야 하며, 비슷한 물건으로 대체 판정하지 말라는 지침을 추가했다. 추가한 문구는 다음과 같다.
+
+> Require visible evidence for each specific object, action, or attribute named in the condition; do not treat a related or similar item as a match. If the image clearly shows a different item or form, use NOT_MET; use UNCERTAIN when ambiguity or obstruction prevents checking the named detail.
+
+영양제 사진 2장으로 집중 재평가하는 데 드는 추정 비용은 `$0.0011505`였다. 불투명한 약 용기 사례는 `UNCERTAIN`에서 `NOT_MET`으로 바뀌었지만, 사진의 구미 젤리는 여전히 정제·캡슐 조건에 맞는 것으로 판정됐다(`MET`). 프롬프트 템플릿 SHA-256은 다음과 같다.
+
+`42105c4d6e4ff4a614973c64fde8a1cf3f1342d7d992bf4a30eead9a753cdaa2`
+
 ## 실험 요약표
 
 | 버전 | 고정 모델 | 직전 버전에서 바꾼 점 | 개발 사례 | 판정 변경률 | 오승인율 | `UNCERTAIN` 건수/분모 | 정성 평가 | 결정 |
@@ -38,6 +50,7 @@
 | `photo-verification-v1` | `gemini-3.5-flash-lite` | 최초 버전 | 18 | — | — | 0 | 긍정 라벨 36개 중 35개는 `MET`, 영양제 조건 하나는 `NOT_MET`으로 판정 | 긍정 사진 스모크 테스트에 한정. 부정·모호 사례 필요 |
 | 영양제 조건 설명 수정 (v1 내 변경) | `gemini-3.5-flash-lite` | 용기 안팎에 보이는 알약을 허용하도록 조건 설명 수정 | 3장 / 조건 6개 | 16.7% (1/6) | — | 0 | `SUPPLEMENT_INTAKE/16051949`가 `NOT_MET`에서 `MET`으로 바뀜 | 조건 설명을 명확하게 유지. 프롬프트 버전 변경은 아님 |
 | `photo-verification-v2` | `gemini-3.5-flash-lite` | 백엔드 직렬화 시 조건 ID와 설명만 전달 | 30장 / 조건 60개 | — | 8.3% (부정 라벨 1/12) | 2/60 | 영양제 구미를 정제·캡슐로 잘못 판정한 오승인 1건, 불투명한 약 용기 조건에서 보류 1건 | 정확한 대상 일치 지침만 조정. 개발 파일럿 결과이며 성능 보증 아님 |
+| `photo-verification-v3` | `gemini-3.5-flash-lite` | 구체적 시각 증거를 요구하고 유사한 물건으로 대체하지 않도록 지침 추가 | 2장 / 조건 4개 | — | 50% (부정 라벨 1/2) | 0/4 | 불투명 용기 결과는 `NOT_MET`으로 바뀌었지만 구미 오승인은 남음 | 관찰된 오승인을 해결하지 못해 채택하지 않음 |
 
 프롬프트 민감도 비교는 `(case_id, challenge_condition_id)`를 기준으로 결과를 짝지어 수행한다. 판정 변경률은 비교 가능한 전체 예측 중 상태가 바뀐 예측의 비율이다. 변경률이 낮다고 더 나은 프롬프트인 것은 아니므로 오승인율 변화를 따로 기록한다.
 
