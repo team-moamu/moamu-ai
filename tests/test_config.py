@@ -30,6 +30,14 @@ def test_settings_selects_a_prompt_version_from_the_environment(monkeypatch):
     assert settings.ai_prompt_version == "photo-verification-v3"
 
 
+def test_settings_selects_gemini_thinking_level_from_the_environment(monkeypatch):
+    monkeypatch.setenv("GEMINI_THINKING_LEVEL", "low")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.gemini_thinking_level == "low"
+
+
 def test_settings_rejects_an_unknown_prompt_version(monkeypatch):
     import pytest
     from pydantic import ValidationError

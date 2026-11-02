@@ -19,8 +19,11 @@ def test_provider_factory_passes_the_configured_prompt_version(monkeypatch, prov
         ai_provider=provider,
         gemini_token_api_key=SecretStr("test-key"),
         ai_prompt_version="photo-verification-v3",
+        gemini_thinking_level="low",
     )
 
     judge = factory.create_photo_judge(settings)
 
     assert judge.kwargs["prompt_version"] == "photo-verification-v3"
+    if provider == "gemini":
+        assert judge.kwargs["thinking_level"] == "low"

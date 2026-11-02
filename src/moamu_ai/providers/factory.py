@@ -14,6 +14,7 @@ def create_photo_judge(settings: Settings) -> PhotoJudge:
             model=settings.gemini_model,
             timeout_seconds=settings.ai_provider_timeout_seconds,
             prompt_version=settings.ai_prompt_version,
+            thinking_level=settings.gemini_thinking_level,
         )
     if settings.ai_provider == "ollama":
         return OllamaPhotoJudge(

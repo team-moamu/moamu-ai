@@ -96,7 +96,7 @@ JSON
 
 ### Gemini API
 
-`.env`에서 `AI_PROVIDER=gemini`를 선택하고 `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`, `AI_PROMPT_VERSION`을 설정합니다. 프롬프트 버전은 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있으며, 기본값은 v4입니다. 기본 모델과 연결 시간 제한은 [.env.example](.env.example)에 있습니다.
+`.env`에서 `AI_PROVIDER=gemini`를 선택하고 `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`, `AI_PROMPT_VERSION`을 설정합니다. 프롬프트 버전은 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있으며, 기본값은 v4입니다. 모델 비교를 할 때는 `GEMINI_THINKING_LEVEL=low`로 설정해 추론 수준을 맞출 수 있습니다. 생략하면 각 모델의 기본값을 사용합니다. 기본 설정은 [.env.example](.env.example)에 있습니다.
 
 ### Ollama
 

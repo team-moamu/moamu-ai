@@ -24,9 +24,12 @@ from moamu_ai.providers.factory import create_photo_judge
 from moamu_ai.schemas import BenchmarkCase, PhotoVerificationRequest
 from moamu_ai.service import PhotoVerificationService
 
-GEMINI_PRICE_SNAPSHOT_DATE = "2026-10-26"
+GEMINI_PRICE_SNAPSHOT_DATE = "2026-11-03"
 GEMINI_PRICE_SOURCE = "https://ai.google.dev/gemini-api/docs/pricing"
-GEMINI_STANDARD_USD_PER_MILLION_TOKENS = {"gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50}}
+GEMINI_STANDARD_USD_PER_MILLION_TOKENS = {
+    "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
+    "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
+}
 
 
 def load_manifest(path: Path) -> list[BenchmarkCase]:
@@ -202,6 +205,7 @@ def run_benchmark(
     prompt_token_counts = []
     output_token_counts = []
     total_token_counts = []
+    thinking_token_counts = []
     models = set()
     for case in selected:
         request = PhotoVerificationRequest(
@@ -215,7 +219,11 @@ def run_benchmark(
         estimated_cost = estimate_cost_usd(
             usage.model,
             usage.prompt_tokens,
-            usage.output_tokens,
+            (
+                usage.output_tokens + (usage.thinking_tokens or 0)
+                if usage.output_tokens is not None
+                else None
+            ),
         )
         if estimated_cost is not None:
             estimated_costs.append(estimated_cost)
@@ -229,6 +237,8 @@ def run_benchmark(
             output_token_counts.append(usage.output_tokens)
         if usage.total_tokens is not None:
             total_token_counts.append(usage.total_tokens)
+        if usage.thinking_tokens is not None:
+            thinking_token_counts.append(usage.thinking_tokens)
         results_by_id = {result.challenge_condition_id: result for result in response.results}
         expected_by_id = {
             expected.challenge_condition_id: expected for expected in case.expected_results
@@ -272,6 +282,14 @@ def run_benchmark(
         "started_at": started_at,
         "provider": provider,
         "models": sorted(models),
+        "generation_settings": (
+            {
+                "thinking_level": getattr(judge, "thinking_level", None),
+                "max_output_tokens": getattr(judge, "max_output_tokens", None),
+            }
+            if provider == "gemini"
+            else None
+        ),
         "prompt_version": prompt_definition.version,
         "prompt_template_sha256": hashlib.sha256(
             prompt_definition.instruction.encode("utf-8")
@@ -288,6 +306,7 @@ def run_benchmark(
             "prompt": sum(prompt_token_counts) if prompt_token_counts else None,
             "output": sum(output_token_counts) if output_token_counts else None,
             "total": sum(total_token_counts) if total_token_counts else None,
+            "thinking": sum(thinking_token_counts) if thinking_token_counts else None,
         },
         "latency_ms": {
             "p50": _percentile(latencies, 0.50),

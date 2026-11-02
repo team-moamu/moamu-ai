@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     ai_prompt_version: str = DEFAULT_PROMPT_VERSION
     gemini_token_api_key: Optional[SecretStr] = None
     gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3-vl:2b"
     ai_provider_timeout_seconds: float = Field(default=45.0, gt=0, le=300)

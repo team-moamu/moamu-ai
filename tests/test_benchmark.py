@@ -115,10 +115,38 @@ def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Pat
     assert result["metrics"]["by_condition"]["BOTTLE_VISIBLE"]["accuracy"] == 1.0
     assert result["image_calls"] == 1
     assert result["cases"][0]["dataset_split"] == "validation"
-    assert result["token_totals"] == {"prompt": 100, "output": 10, "total": 110}
+    assert result["token_totals"] == {
+        "prompt": 100,
+        "output": 10,
+        "total": 110,
+        "thinking": None,
+    }
     assert result["latency_ms"] == {"p50": 250, "p95": 250}
     assert len(result["cases"][0]["prompt_sha256"]) == 64
     assert "image_path" not in result["cases"][0]
+
+
+def test_benchmark_records_gemini_generation_settings(tmp_path: Path):
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    case = BenchmarkCase.model_validate(sample_case("sample.jpg"))
+    judge = FakeJudge()
+    judge.thinking_level = "low"
+    judge.max_output_tokens = 512
+
+    result = run_benchmark(
+        cases=[case],
+        judge=judge,
+        image_root=image_root,
+        provider="gemini",
+        prompt_version="photo-verification-v4",
+    )
+
+    assert result["generation_settings"] == {
+        "thinking_level": "low",
+        "max_output_tokens": 512,
+    }
 
 
 def test_benchmark_records_hashes_for_the_selected_prompt_version(tmp_path: Path):
@@ -253,6 +281,7 @@ def test_gemini_benchmark_limit_is_capped_at_six_calls_per_run():
 
 def test_cost_estimate_uses_recorded_tokens_and_unknown_models_remain_unpriced():
     assert estimate_cost_usd("gemini-3.5-flash-lite", 1000, 1000) == 0.0028
+    assert estimate_cost_usd("gemini-3.8-flash", 1000, 1000) == 0.0045
     assert estimate_cost_usd("qwen3-vl:2b", 1000, 1000) is None
 
 

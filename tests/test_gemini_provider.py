@@ -32,7 +32,8 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
         usage_metadata=SimpleNamespace(
             prompt_token_count=20,
             candidates_token_count=4,
-            total_token_count=24,
+            total_token_count=31,
+            thoughts_token_count=7,
         ),
     )
     models = FakeGeminiModels(response)
@@ -40,6 +41,7 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
         api_key=SecretStr("test-key"),
         model="gemini-3.5-flash-lite",
         prompt_version="photo-verification-v3",
+        thinking_level="low",
         client=SimpleNamespace(models=models),
     )
     conditions = [
@@ -66,12 +68,15 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
     assert result.results[0].status == ConditionStatus.MET
     assert result.usage.model == "gemini-3.5-flash-lite"
     assert result.usage.prompt_tokens == 20
+    assert result.usage.thinking_tokens == 7
     assert models.kwargs["model"] == "gemini-3.5-flash-lite"
     assert "related or similar item as a match" in models.kwargs["contents"][0]
     assert "gummy candy is not a tablet or capsule" not in models.kwargs["contents"][0]
     assert models.kwargs["contents"][1].inline_data.data == b"fake image bytes"
     assert models.kwargs["config"].response_mime_type == "application/json"
     assert models.kwargs["config"].temperature == 0
+    assert models.kwargs["config"].max_output_tokens == 512
+    assert models.kwargs["config"].thinking_config.thinking_level.value.lower() == "low"
 
 
 def test_gemini_provider_requires_the_exact_configured_api_key_name():
