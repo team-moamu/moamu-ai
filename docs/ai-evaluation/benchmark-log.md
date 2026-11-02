@@ -69,15 +69,14 @@ Gemini schema fields; those requests returned no model result and are not scored
 
 ## Current status
 
-- One Open Images V7 object-presence case and 18 manually selected Pexels
-  positive photos have been evaluated with Gemini. The six-challenge results and
-  condition wording retest are recorded in
-  [six-challenge-positive-smoke.md](six-challenge-positive-smoke.md).
+- One Open Images V7 object-presence case, 18 manually selected Pexels positive
+  photos, and a 30-photo six-category v2 development baseline have been evaluated
+  with Gemini. The latest six-category pilot adds two negative condition labels
+  per category, but has no held-out split or independent double annotation.
 - The benchmark runner defaults to dry-run and caps Gemini at six image calls per
   execution. It records no image bytes and keeps generated result files ignored.
-- The six-challenge set contains only positive examples. More cases are needed,
-  especially explicit negatives and manually labeled ambiguous examples, before
-  false-accept metrics, model comparison, or PRD target claims are meaningful.
+- The current false-accept result is diagnostic only and does not establish the
+  PRD target.
 
 ## Run 2026-10-27 — Six challenge positive smoke set
 
@@ -107,3 +106,20 @@ Gemini schema fields; those requests returned no model result and are not scored
 - Decision: Gemini passed this curated positive smoke set after one condition
   phrase was clarified. This does not establish general performance or satisfy
   the false-accept target; add hard negatives and ambiguous examples next.
+
+## Run 2026-11-02 — Six-category v2 baseline
+
+- Manifest: `data/evaluation/six-challenge-v2-pilot-20261102.jsonl` (30 photos,
+  60 condition labels; 18 prior positive photos and 12 newly sourced mixed
+  cases). All cases are in `dev`; there is no held-out set.
+- Source and labels: Pexels. The 12 new images each have one `MET` and one
+  `NOT_MET` condition label, assigned by one manual reviewer.
+- Provider/model: Gemini API / `gemini-3.5-flash-lite`; `google-genai 1.75.0`,
+  Python `3.13.5`.
+- Prompt: `photo-verification-v2`; 30 image calls, 60 condition predictions.
+- Results: 57/60 predictions match (95.0%); false accepts 1/12 negative labels
+  (8.3%); false rejects 0/48 positive labels; `UNCERTAIN` 2/60.
+- Tokens: `38,000 / 2,036` input/output; estimated cost `$0.0164900`.
+- Decision: this development baseline exposed a supplement gummy false accept.
+  It is a diagnostic result only; each category has two negative labels and the
+  study action label needs independent review.
