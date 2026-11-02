@@ -13,11 +13,14 @@ def create_photo_judge(settings: Settings) -> PhotoJudge:
             api_key=settings.gemini_token_api_key,
             model=settings.gemini_model,
             timeout_seconds=settings.ai_provider_timeout_seconds,
+            prompt_version=settings.ai_prompt_version,
+            thinking_level=settings.gemini_thinking_level,
         )
     if settings.ai_provider == "ollama":
         return OllamaPhotoJudge(
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             timeout_seconds=settings.ai_provider_timeout_seconds,
+            prompt_version=settings.ai_prompt_version,
         )
     raise ProviderConfigurationError("configured AI provider is not supported")

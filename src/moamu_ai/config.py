@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from moamu_ai.prompts import DEFAULT_PROMPT_VERSION, get_prompt_definition
 
 
 class Settings(BaseSettings):
@@ -15,9 +17,17 @@ class Settings(BaseSettings):
 
     ai_provider: Literal["gemini", "ollama"] = "gemini"
     ai_image_root: Path = Path("./data/images")
+    ai_prompt_version: str = DEFAULT_PROMPT_VERSION
     gemini_token_api_key: Optional[SecretStr] = None
     gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3-vl:2b"
     ai_provider_timeout_seconds: float = Field(default=45.0, gt=0, le=300)
     gemini_max_live_calls_per_run: int = Field(default=6, ge=1, le=6)
+
+    @field_validator("ai_prompt_version")
+    @classmethod
+    def validate_prompt_version(cls, value: str) -> str:
+        get_prompt_definition(value)
+        return value

@@ -1,7 +1,7 @@
 import mimetypes
 from pathlib import Path
 from time import perf_counter
-from typing import Optional
+from typing import Literal, Optional
 
 from google import genai
 from google.genai import types
@@ -12,9 +12,15 @@ from moamu_ai.errors import (
     ModelProviderError,
     ProviderConfigurationError,
 )
-from moamu_ai.prompts import build_verification_prompt
+from moamu_ai.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    build_verification_prompt,
+    get_prompt_definition,
+)
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
 from moamu_ai.schemas import ConditionSnapshot, PhotoVerificationResponse
+
+GEMINI_MAX_OUTPUT_TOKENS = 512
 
 
 class GeminiPhotoJudge:
@@ -24,11 +30,16 @@ class GeminiPhotoJudge:
         model: str,
         timeout_seconds: float = 45.0,
         client=None,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
+        thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None,
     ):
         if api_key is None or not api_key.get_secret_value():
             raise ProviderConfigurationError("GEMINI_TOKEN_API_KEY is not configured")
         self.model = model
         self.timeout_seconds = timeout_seconds
+        self.prompt_version = get_prompt_definition(prompt_version).version
+        self.thinking_level = thinking_level
+        self.max_output_tokens = GEMINI_MAX_OUTPUT_TOKENS
         self.client = client or genai.Client(
             api_key=api_key.get_secret_value(),
             http_options=types.HttpOptions(
@@ -46,18 +57,23 @@ class GeminiPhotoJudge:
         if not mime_type or not mime_type.startswith("image/"):
             mime_type = "image/jpeg"
         image = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-        prompt = build_verification_prompt(conditions)
+        prompt = build_verification_prompt(conditions, version=self.prompt_version)
+        config = {
+            "response_mime_type": "application/json",
+            "response_schema": _gemini_response_schema(),
+            "temperature": 0,
+            "max_output_tokens": self.max_output_tokens,
+        }
+        if self.thinking_level is not None:
+            config["thinking_config"] = types.ThinkingConfig(
+                thinking_level=self.thinking_level
+            )
         started = perf_counter()
         try:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[prompt, image],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=_gemini_response_schema(),
-                    temperature=0,
-                    max_output_tokens=256,
-                ),
+                config=types.GenerateContentConfig(**config),
             )
         except Exception as exc:
             raise ModelProviderError("Gemini request failed") from exc
@@ -75,6 +91,7 @@ class GeminiPhotoJudge:
         prompt_tokens = getattr(metadata, "prompt_token_count", None)
         output_tokens = getattr(metadata, "candidates_token_count", None)
         total_tokens = getattr(metadata, "total_token_count", None)
+        thinking_tokens = getattr(metadata, "thoughts_token_count", None)
         return InferenceResult(
             results=parsed.results,
             usage=InferenceUsage(
@@ -83,6 +100,7 @@ class GeminiPhotoJudge:
                 prompt_tokens=prompt_tokens,
                 output_tokens=output_tokens,
                 total_tokens=total_tokens,
+                thinking_tokens=thinking_tokens,
             ),
         )
 

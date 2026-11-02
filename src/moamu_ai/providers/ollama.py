@@ -7,7 +7,11 @@ import httpx
 from pydantic import ValidationError
 
 from moamu_ai.errors import InvalidModelOutputError, ModelProviderError
-from moamu_ai.prompts import build_verification_prompt
+from moamu_ai.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    build_verification_prompt,
+    get_prompt_definition,
+)
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
 from moamu_ai.schemas import ConditionSnapshot, PhotoVerificationResponse
 
@@ -19,10 +23,12 @@ class OllamaPhotoJudge:
         model: str,
         timeout_seconds: float = 45.0,
         client: Optional[httpx.Client] = None,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_seconds = timeout_seconds
+        self.prompt_version = get_prompt_definition(prompt_version).version
         self.client = client or httpx.Client(timeout=timeout_seconds)
 
     def evaluate(self, image_path: Path, conditions: list[ConditionSnapshot]) -> InferenceResult:
@@ -31,7 +37,7 @@ class OllamaPhotoJudge:
         except OSError as exc:
             raise ModelProviderError("validated image could not be read") from exc
         encoded_image = base64.b64encode(image_bytes).decode("ascii")
-        prompt = build_verification_prompt(conditions)
+        prompt = build_verification_prompt(conditions, version=self.prompt_version)
         schema = PhotoVerificationResponse.model_json_schema()
         started = perf_counter()
         try:
