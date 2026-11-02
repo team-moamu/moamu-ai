@@ -124,10 +124,10 @@ authentication before exposure.
 
 The provider sees the image plus each supplied condition ID and natural-language
 description. It does not receive database codes, condition types, required flags,
-or sort order. Prompt version `photo-verification-v2` asks the model to abstain
-with `UNCERTAIN` where visual evidence is unclear. Gemini and Ollama use
-constrained JSON output; the service validates provider output again before
-returning it.
+or sort order. The current candidate, `photo-verification-v4`, requires visible
+evidence for the named object, action, or form, and returns `UNCERTAIN` when the
+image is ambiguous or obstructed. Gemini and Ollama use constrained JSON output;
+the service validates provider output again before returning it.
 
 FastAPI request/response models follow the official [request body](https://fastapi.tiangolo.com/tutorial/body/)
 pattern. Gemini uses the official [image input](https://ai.google.dev/gemini-api/docs/image-understanding)

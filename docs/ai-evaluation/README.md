@@ -10,6 +10,8 @@ access before moving records there.
 - [Model selection](model-selection.md): candidates, comparison method, cost controls.
 - [Prompt experiments](prompt-experiments.md): versioned prompt and sensitivity log.
 - [Dataset and metrics](dataset-and-metrics.md): public data sources, labels, six goal types.
+- [Six-category quantitative evaluation plan](six-category-quantitative-evaluation-plan.md): additional image sources, labeling protocol, sample size, metrics, and prompt-tuning decision gates.
+- [Six-category v2/v4 pilot report](six-category-v2-pilot-20261102.md): 30 Pexels cases, Gemini results, one prompt-tuning loop, and the next evaluation gaps.
 - [Benchmark run log](benchmark-log.md): durable record template and current status.
 - [Six-challenge positive smoke evaluation](six-challenge-positive-smoke.md): curated image sources, two conditions per challenge, Gemini results, and limitations.
 - [API contract](api-contract.md): internal endpoint contract and error mapping.
@@ -28,6 +30,11 @@ moamu-evaluate --manifest data/evaluation/manifest.jsonl --provider gemini --lim
 The six-challenge smoke run used three batches of six images and one focused
 three-image wording retest. Its manifest and findings are in
 [six-challenge-positive-smoke.md](six-challenge-positive-smoke.md).
+
+The 2026-11-02 prompt comparison is recorded in
+[six-category-v2-pilot-20261102.md](six-category-v2-pilot-20261102.md). It compares
+`photo-verification-v2` and `photo-verification-v4` on the same 30 development
+photos; the raw model outputs remain ignored under `data/evaluation/results/`.
 
 Each image case evaluates two to five conditions in one model request. Run output
 is written to `data/evaluation/results/`, which is ignored by Git. Image files are
