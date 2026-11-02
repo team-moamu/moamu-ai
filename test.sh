@@ -12,6 +12,7 @@ API_URL="${MOAMU_AI_URL:-http://127.0.0.1:8000/internal/photo-verifications}"
 python3 - "$IMAGE_PATH" <<'PY' | curl --request POST \
   --url "$API_URL" \
   --header 'Content-Type: application/json' \
+  --fail-with-body \
   --data-binary @-
 import json
 import sys
