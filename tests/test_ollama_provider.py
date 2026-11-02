@@ -34,6 +34,7 @@ def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: P
     judge = OllamaPhotoJudge(
         base_url="http://localhost:11434/",
         model="qwen3-vl:2b",
+        prompt_version="photo-verification-v3",
         client=http_client,
     )
     conditions = [
@@ -64,6 +65,8 @@ def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: P
     assert request_body["model"] == "qwen3-vl:2b"
     assert request_body["stream"] is False
     assert request_body["options"]["temperature"] == 0
+    assert "related or similar item as a match" in request_body["messages"][0]["content"]
+    assert "gummy candy is not a tablet or capsule" not in request_body["messages"][0]["content"]
     assert request_body["messages"][0]["images"] == [
         base64.b64encode(b"local test image").decode("ascii")
     ]

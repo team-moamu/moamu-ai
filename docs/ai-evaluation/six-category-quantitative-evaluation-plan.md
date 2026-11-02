@@ -155,10 +155,10 @@ Gemini 벤치마크 실행기는 한 번 실행에 최대 6개 이미지 사례�
 
 ```bash
 # 데이터/경로 검증만 수행
-moamu-evaluate --manifest data/evaluation/six-category-pilot-01.jsonl --provider gemini --limit 6
+moamu-evaluate --manifest data/evaluation/six-category-pilot-01.jsonl --provider gemini --limit 6 --prompt-version photo-verification-v2
 
 # 명시적으로 최대 6장까지 Gemini 호출
-moamu-evaluate --manifest data/evaluation/six-category-pilot-01.jsonl --provider gemini --limit 6 --execute
+moamu-evaluate --manifest data/evaluation/six-category-pilot-01.jsonl --provider gemini --limit 6 --prompt-version photo-verification-v2 --execute
 ```
 
 실제 호출 전에는 `GEMINI_TOKEN_API_KEY`와 모델 설정을 확인한다. 결과 파일은 기존 규칙대로 `data/evaluation/results/`에 두고 Git에 올리지 않는다.

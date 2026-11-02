@@ -122,12 +122,13 @@ authentication before exposure.
 
 ## Model input/output
 
-The provider sees the image plus each supplied condition ID and natural-language
-description. It does not receive database codes, condition types, required flags,
-or sort order. The current candidate, `photo-verification-v4`, requires visible
-evidence for the named object, action, or form, and returns `UNCERTAIN` when the
-image is ambiguous or obstructed. Gemini and Ollama use constrained JSON output;
-the service validates provider output again before returning it.
+모델에는 이미지와 각 조건의 ID·자연어 설명을 전달한다. v2 이후 버전은 DB 코드,
+조건 유형, 필수 여부, 정렬 순서를 전달하지 않는다. 프롬프트 문구와 직렬화 방식은
+`src/moamu_ai/prompts.py`에 버전별로 보존한다. `AI_PROMPT_VERSION`으로 서비스 버전을
+선택하며 기본값은 `photo-verification-v4`다. 벤치마크 CLI는 `--prompt-version`으로
+이를 덮어쓸 수 있다. v4는 조건에 명시된 대상·행동·형태의 시각적 증거를 요구하고,
+이미지가 모호하거나 가려진 경우 `UNCERTAIN`을 반환한다. Gemini와 Ollama는 제한된
+JSON 형식으로 응답하며, 서비스는 반환 전에 모델 응답을 다시 검증한다.
 
 FastAPI request/response models follow the official [request body](https://fastapi.tiangolo.com/tutorial/body/)
 pattern. Gemini uses the official [image input](https://ai.google.dev/gemini-api/docs/image-understanding)

@@ -12,7 +12,11 @@ from moamu_ai.errors import (
     ModelProviderError,
     ProviderConfigurationError,
 )
-from moamu_ai.prompts import build_verification_prompt
+from moamu_ai.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    build_verification_prompt,
+    get_prompt_definition,
+)
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
 from moamu_ai.schemas import ConditionSnapshot, PhotoVerificationResponse
 
@@ -24,11 +28,13 @@ class GeminiPhotoJudge:
         model: str,
         timeout_seconds: float = 45.0,
         client=None,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
     ):
         if api_key is None or not api_key.get_secret_value():
             raise ProviderConfigurationError("GEMINI_TOKEN_API_KEY is not configured")
         self.model = model
         self.timeout_seconds = timeout_seconds
+        self.prompt_version = get_prompt_definition(prompt_version).version
         self.client = client or genai.Client(
             api_key=api_key.get_secret_value(),
             http_options=types.HttpOptions(
@@ -46,7 +52,7 @@ class GeminiPhotoJudge:
         if not mime_type or not mime_type.startswith("image/"):
             mime_type = "image/jpeg"
         image = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-        prompt = build_verification_prompt(conditions)
+        prompt = build_verification_prompt(conditions, version=self.prompt_version)
         started = perf_counter()
         try:
             response = self.client.models.generate_content(

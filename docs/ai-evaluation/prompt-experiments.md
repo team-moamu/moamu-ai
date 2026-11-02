@@ -9,6 +9,14 @@
 - 프롬프트 버전 사이에서 조건별 판정 변경, 오승인 변화, `UNCERTAIN` 변화와 대표 오류를 기록한다.
 - 프롬프트 기록에 이미지 데이터, 개인정보 또는 API 키를 넣지 않는다.
 
+## 코드에서 버전 관리하고 선택하기
+
+각 버전의 고정 지침과 조건 직렬화 방식은 [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에 별도 항목으로 보존한다. 과거 정의를 수정하지 않고 새 버전을 추가한다. `get_prompt_definition(version)`으로 버전 정의를 조회하고, `build_verification_prompt(conditions, version=...)`로 해당 버전의 요청 프롬프트를 만든다.
+
+서비스는 `.env`의 `AI_PROMPT_VERSION`을 사용하며 기본값은 `photo-verification-v4`다. 평가 실행은 `--prompt-version photo-verification-v2`처럼 버전을 지정할 수 있고, 이 값은 `.env` 설정보다 우선한다. 결과 파일에는 실제로 사용한 버전, 프롬프트 템플릿 해시, 조건을 붙인 프롬프트 해시가 함께 기록된다.
+
+v1은 조건 ID·코드·유형·설명·필수 여부·정렬 순서를 모델에 보낸다. v2 이후는 ID와 설명만 보낸다. 버전 정의에는 프롬프트 문구뿐 아니라 이 입력 형식 차이도 보존한다.
+
 ## `photo-verification-v1`
 
 **상태:** 초기 평가에 사용한 과거 버전이며 v2로 대체됐다.

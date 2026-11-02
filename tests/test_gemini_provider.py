@@ -39,6 +39,7 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
     judge = GeminiPhotoJudge(
         api_key=SecretStr("test-key"),
         model="gemini-3.5-flash-lite",
+        prompt_version="photo-verification-v3",
         client=SimpleNamespace(models=models),
     )
     conditions = [
@@ -66,6 +67,8 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
     assert result.usage.model == "gemini-3.5-flash-lite"
     assert result.usage.prompt_tokens == 20
     assert models.kwargs["model"] == "gemini-3.5-flash-lite"
+    assert "related or similar item as a match" in models.kwargs["contents"][0]
+    assert "gummy candy is not a tablet or capsule" not in models.kwargs["contents"][0]
     assert models.kwargs["contents"][1].inline_data.data == b"fake image bytes"
     assert models.kwargs["config"].response_mime_type == "application/json"
     assert models.kwargs["config"].temperature == 0

@@ -30,6 +30,7 @@ test -f .env || cp .env.example .env
 ```dotenv
 AI_PROVIDER=gemini
 AI_IMAGE_ROOT=./data/images
+AI_PROMPT_VERSION=photo-verification-v4
 GEMINI_TOKEN_API_KEY=발급받은_Gemini_API_키
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```
@@ -95,7 +96,7 @@ JSON
 
 ### Gemini API
 
-`.env`에서 `AI_PROVIDER=gemini`를 선택하고 `GEMINI_TOKEN_API_KEY`와 `GEMINI_MODEL`을 설정합니다. 기본 모델과 연결 시간 제한은 [.env.example](.env.example)에 있습니다.
+`.env`에서 `AI_PROVIDER=gemini`를 선택하고 `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`, `AI_PROMPT_VERSION`을 설정합니다. 프롬프트 버전은 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있으며, 기본값은 v4입니다. 기본 모델과 연결 시간 제한은 [.env.example](.env.example)에 있습니다.
 
 ### Ollama
 
@@ -118,9 +119,11 @@ pytest
 평가 명령은 기본적으로 실행 계획만 검증합니다. 실제 Gemini 호출을 하려면 `--execute`를 추가해야 하며, 한 번 실행할 때 이미지 사례는 최대 6개로 제한됩니다.
 
 ```bash
-moamu-evaluate --manifest data/evaluation/open-images-v7-smoke.jsonl --provider gemini --limit 6
-moamu-evaluate --manifest data/evaluation/open-images-v7-smoke.jsonl --provider gemini --limit 6 --execute
+moamu-evaluate --manifest data/evaluation/open-images-v7-smoke.jsonl --provider gemini --limit 6 --prompt-version photo-verification-v2
+moamu-evaluate --manifest data/evaluation/open-images-v7-smoke.jsonl --provider gemini --limit 6 --prompt-version photo-verification-v2 --execute
 ```
+
+벤치마크의 `--prompt-version`은 `.env`의 `AI_PROMPT_VERSION`보다 우선합니다. 실행 결과에는 실제 사용한 프롬프트 버전과 해시가 기록됩니다.
 
 이미지는 `AI_IMAGE_ROOT` 아래에 준비하고, 평가 데이터와 모델·프롬프트 기록은 [AI 평가 문서](docs/ai-evaluation/README.md)에서 확인하세요. 실행 결과 디렉터리는 Git에 저장하지 않습니다.
 

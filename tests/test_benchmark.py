@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from moamu_ai.benchmark import (
     run_benchmark,
     validate_run_limit,
 )
+from moamu_ai.prompts import build_verification_prompt, get_prompt_definition
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
 from moamu_ai.schemas import BenchmarkCase, ConditionResult, ConditionStatus
 
@@ -117,6 +119,32 @@ def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Pat
     assert result["latency_ms"] == {"p50": 250, "p95": 250}
     assert len(result["cases"][0]["prompt_sha256"]) == 64
     assert "image_path" not in result["cases"][0]
+
+
+def test_benchmark_records_hashes_for_the_selected_prompt_version(tmp_path: Path):
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    case = BenchmarkCase.model_validate(sample_case("sample.jpg"))
+    selected_version = "photo-verification-v2"
+
+    result = run_benchmark(
+        cases=[case],
+        judge=FakeJudge(),
+        image_root=image_root,
+        provider="ollama",
+        prompt_version=selected_version,
+    )
+
+    expected_template_hash = hashlib.sha256(
+        get_prompt_definition(selected_version).instruction.encode("utf-8")
+    ).hexdigest()
+    expected_prompt_hash = hashlib.sha256(
+        build_verification_prompt(case.conditions, version=selected_version).encode("utf-8")
+    ).hexdigest()
+    assert result["prompt_version"] == selected_version
+    assert result["prompt_template_sha256"] == expected_template_hash
+    assert result["cases"][0]["prompt_sha256"] == expected_prompt_hash
 
 
 def test_benchmark_records_unlabeled_predictions_but_excludes_them_from_metrics(tmp_path: Path):
@@ -228,7 +256,9 @@ def test_cost_estimate_uses_recorded_tokens_and_unknown_models_remain_unpriced()
     assert estimate_cost_usd("qwen3-vl:2b", 1000, 1000) is None
 
 
-def test_benchmark_cli_is_dry_run_without_execute(tmp_path: Path, monkeypatch, capsys):
+def test_benchmark_cli_dry_run_accepts_a_prompt_version_override(
+    tmp_path: Path, monkeypatch, capsys
+):
     manifest = tmp_path / "manifest.jsonl"
     manifest.write_text(json.dumps(sample_case("missing.jpg")) + "\n")
 
@@ -237,5 +267,16 @@ def test_benchmark_cli_is_dry_run_without_execute(tmp_path: Path, monkeypatch, c
 
     monkeypatch.setattr("moamu_ai.benchmark.create_photo_judge", unexpected_live_client)
 
-    assert main(["--manifest", str(manifest), "--provider", "gemini"]) == 0
-    assert "No model calls were made" in capsys.readouterr().out
+    assert main(
+        [
+            "--manifest",
+            str(manifest),
+            "--provider",
+            "gemini",
+            "--prompt-version",
+            "photo-verification-v2",
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert "photo-verification-v2" in output
+    assert "No model calls were made" in output
