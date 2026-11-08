@@ -12,11 +12,12 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from moamu_ai.config import Settings
+from moamu_ai.image_sources import LocalImageStore
 from moamu_ai.metrics import summarize_cases
 from moamu_ai.prompts import PROMPT_VERSION, VERIFICATION_INSTRUCTION, build_verification_prompt
 from moamu_ai.providers.base import PhotoJudge
 from moamu_ai.providers.factory import create_photo_judge
-from moamu_ai.schemas import BenchmarkCase, PhotoVerificationRequest
+from moamu_ai.schemas import BenchmarkCase
 from moamu_ai.service import PhotoVerificationService
 
 GEMINI_PRICE_SNAPSHOT_DATE = "2026-10-26"
@@ -185,7 +186,7 @@ def run_benchmark(
     if provider == "gemini" and len(selected) > max_gemini_calls:
         raise ValueError("Gemini benchmark maximum is 6 calls per run")
 
-    service = PhotoVerificationService(lambda: judge, image_root)
+    service = PhotoVerificationService(lambda: judge, LocalImageStore(image_root))
     started_at = datetime.now(timezone.utc).isoformat()
     evaluation_rows = []
     metric_cases = []
@@ -197,11 +198,10 @@ def run_benchmark(
     total_token_counts = []
     models = set()
     for case in selected:
-        request = PhotoVerificationRequest(
-            image_path=case.image_path,
-            conditions=case.conditions,
+        condition_results, usage = service.evaluate_local_with_usage(
+            case.image_path,
+            case.conditions,
         )
-        response, usage = service.verify_with_usage(request)
         prompt_hash = hashlib.sha256(
             build_verification_prompt(case.conditions).encode("utf-8")
         ).hexdigest()
@@ -222,7 +222,9 @@ def run_benchmark(
             output_token_counts.append(usage.output_tokens)
         if usage.total_tokens is not None:
             total_token_counts.append(usage.total_tokens)
-        results_by_id = {result.challenge_condition_id: result for result in response.results}
+        results_by_id = {
+            result.challenge_condition_id: result for result in condition_results
+        }
         expected_by_id = {
             expected.challenge_condition_id: expected for expected in case.expected_results
         }

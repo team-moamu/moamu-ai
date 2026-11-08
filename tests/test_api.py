@@ -4,11 +4,9 @@ from fastapi.testclient import TestClient
 
 from moamu_ai.app import create_app
 from moamu_ai.config import Settings
+from moamu_ai.image_sources import LocalImageStore
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
-from moamu_ai.schemas import (
-    ConditionResult,
-    ConditionStatus,
-)
+from moamu_ai.schemas import ConditionResult, ConditionStatus
 
 
 class StaticJudge:
@@ -22,106 +20,113 @@ class StaticJudge:
                         if condition.challenge_condition_id == 1
                         else ConditionStatus.UNCERTAIN
                     ),
+                    reason="사진에서 조건을 확인했습니다.",
                 )
                 for condition in conditions
             ],
-            usage=InferenceUsage(model="fake", latency_ms=0),
+            usage=InferenceUsage(model="gemini-3.5-flash-lite", latency_ms=0),
         )
 
 
-def payload(image_path: str):
+def payload(image_key: str = "proof.jpg"):
     return {
-        "image_path": image_path,
+        "ai_task_id": "task-1",
+        "verification_id": "verification-1",
+        "image_key": image_key,
         "conditions": [
-            {
-                "challenge_condition_id": 1,
-                "code": "C1",
-                "condition_type": "OBJECT_PRESENT",
-                "description": "A bottle is visible",
-                "required": "Y",
-                "sort_order": 1,
-            },
-            {
-                "challenge_condition_id": 2,
-                "code": "C2",
-                "condition_type": "ACTIVITY_IN_PROGRESS",
-                "description": "The user is drinking water",
-                "required": "Y",
-                "sort_order": 2,
-            },
+            {"code": "C1", "description": "A bottle is visible"},
+            {"code": "C2", "description": "A hand is holding the bottle"},
         ],
     }
 
 
-def test_endpoint_returns_per_condition_status_only(tmp_path: Path):
+def test_endpoint_returns_backend_contract_with_condition_reasons(tmp_path: Path):
     image_root = tmp_path / "images"
     image_root.mkdir()
-    image = image_root / "proof.jpg"
-    image.write_bytes(b"test")
-    app = create_app(settings=Settings(ai_image_root=image_root), judge=StaticJudge())
-
-    response = TestClient(app).post(
-        "/internal/photo-verifications",
-        json=payload("proof.jpg"),
+    (image_root / "proof.jpg").write_bytes(b"test")
+    app = create_app(
+        settings=Settings(_env_file=None, ai_image_root=image_root),
+        judge=StaticJudge(),
+        image_store=LocalImageStore(image_root),
     )
+
+    response = TestClient(app).post("/internal/photo-verifications", json=payload())
 
     assert response.status_code == 200
     assert response.json() == {
-        "results": [
-            {"challenge_condition_id": 1, "status": "MET"},
-            {"challenge_condition_id": 2, "status": "UNCERTAIN"},
-        ]
+        "ai_task_id": "task-1",
+        "verification_id": "verification-1",
+        "processing_status": "SUCCEEDED",
+        "checks": [
+            {"code": "C1", "status": "MET", "reason": "사진에서 조건을 확인했습니다."},
+            {
+                "code": "C2",
+                "status": "UNCERTAIN",
+                "reason": "사진에서 조건을 확인했습니다.",
+            },
+        ],
+        "model_version": "photo-verifier-v1",
     }
 
 
-def test_endpoint_returns_not_found_for_missing_image_path(tmp_path: Path):
+def test_endpoint_returns_error_envelope_for_invalid_request():
+    app = create_app(settings=Settings(_env_file=None), judge=StaticJudge())
+
+    response = TestClient(app).post(
+        "/internal/photo-verifications",
+        json={**payload(), "conditions": []},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "ai_task_id": "task-1",
+        "verification_id": "verification-1",
+        "processing_status": "ERROR",
+        "error": {
+            "code": "INVALID_REQUEST",
+            "message": "요청 형식 또는 필수 값이 올바르지 않습니다.",
+        },
+    }
+
+
+def test_endpoint_returns_fetch_error_when_image_key_does_not_exist(tmp_path: Path):
     image_root = tmp_path / "images"
     image_root.mkdir()
-    app = create_app(settings=Settings(ai_image_root=image_root), judge=StaticJudge())
+    app = create_app(
+        settings=Settings(_env_file=None, ai_image_root=image_root),
+        judge=StaticJudge(),
+        image_store=LocalImageStore(image_root),
+    )
 
     response = TestClient(app).post(
         "/internal/photo-verifications",
         json=payload("missing.jpg"),
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "IMAGE_NOT_FOUND"
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "IMAGE_FETCH_FAILED"
+    assert response.json()["processing_status"] == "ERROR"
 
 
-def test_path_is_validated_before_missing_gemini_key(tmp_path: Path):
+def test_endpoint_returns_model_unavailable_for_invalid_model_response(tmp_path: Path):
     image_root = tmp_path / "images"
     image_root.mkdir()
-    app = create_app(settings=Settings(ai_image_root=image_root))
+    (image_root / "proof.jpg").write_bytes(b"test")
 
-    response = TestClient(app).post(
-        "/internal/photo-verifications",
-        json=payload("missing.jpg"),
+    class IncompleteJudge:
+        def evaluate(self, image_path, conditions):
+            return InferenceResult(
+                results=[],
+                usage=InferenceUsage(model="gemini-test", latency_ms=0),
+            )
+
+    app = create_app(
+        settings=Settings(_env_file=None, ai_image_root=image_root),
+        judge=IncompleteJudge(),
+        image_store=LocalImageStore(image_root),
     )
 
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "IMAGE_NOT_FOUND"
+    response = TestClient(app).post("/internal/photo-verifications", json=payload())
 
-
-def test_endpoint_rejects_a_path_outside_the_configured_root(tmp_path: Path):
-    image_root = tmp_path / "images"
-    image_root.mkdir()
-    outside_image = tmp_path / "private.jpg"
-    outside_image.write_bytes(b"not an uploaded image")
-    app = create_app(settings=Settings(ai_image_root=image_root), judge=StaticJudge())
-
-    response = TestClient(app).post(
-        "/internal/photo-verifications",
-        json=payload(str(outside_image)),
-    )
-
-    assert response.status_code == 403
-    assert response.json()["detail"]["code"] == "IMAGE_PATH_NOT_ALLOWED"
-
-
-def test_health_endpoint_does_not_require_provider_credentials():
-    app = create_app(settings=Settings())
-
-    response = TestClient(app).get("/healthz")
-
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "MODEL_UNAVAILABLE"

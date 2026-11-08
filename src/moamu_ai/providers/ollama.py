@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from moamu_ai.errors import InvalidModelOutputError, ModelProviderError
 from moamu_ai.prompts import build_verification_prompt
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
-from moamu_ai.schemas import ConditionSnapshot, PhotoVerificationResponse
+from moamu_ai.schemas import ConditionSnapshot, ModelJudgmentResponse
 
 
 class OllamaPhotoJudge:
@@ -32,7 +32,7 @@ class OllamaPhotoJudge:
             raise ModelProviderError("validated image could not be read") from exc
         encoded_image = base64.b64encode(image_bytes).decode("ascii")
         prompt = build_verification_prompt(conditions)
-        schema = PhotoVerificationResponse.model_json_schema()
+        schema = ModelJudgmentResponse.model_json_schema()
         started = perf_counter()
         try:
             response = self.client.post(
@@ -62,7 +62,7 @@ class OllamaPhotoJudge:
         if not isinstance(response_text, str) or not response_text:
             raise InvalidModelOutputError("Ollama returned no structured result")
         try:
-            parsed = PhotoVerificationResponse.model_validate_json(response_text)
+            parsed = ModelJudgmentResponse.model_validate_json(response_text)
         except (ValidationError, ValueError) as exc:
             raise InvalidModelOutputError("Ollama returned an invalid result") from exc
 

@@ -14,7 +14,7 @@ from moamu_ai.errors import (
 )
 from moamu_ai.prompts import build_verification_prompt
 from moamu_ai.providers.base import InferenceResult, InferenceUsage
-from moamu_ai.schemas import ConditionSnapshot, PhotoVerificationResponse
+from moamu_ai.schemas import ConditionSnapshot, ModelJudgmentResponse
 
 
 class GeminiPhotoJudge:
@@ -67,7 +67,7 @@ class GeminiPhotoJudge:
         if not response_text:
             raise InvalidModelOutputError("Gemini returned no structured result")
         try:
-            parsed = PhotoVerificationResponse.model_validate_json(response_text)
+            parsed = ModelJudgmentResponse.model_validate_json(response_text)
         except (ValidationError, ValueError) as exc:
             raise InvalidModelOutputError("Gemini returned an invalid result") from exc
 
@@ -89,7 +89,7 @@ class GeminiPhotoJudge:
 
 def _gemini_response_schema() -> dict:
     """Build Gemini's supported schema subset from the stricter API models."""
-    schema = PhotoVerificationResponse.model_json_schema()
+    schema = ModelJudgmentResponse.model_json_schema()
     pending = [schema]
     while pending:
         current = pending.pop()

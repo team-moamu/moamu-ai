@@ -26,8 +26,9 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
     image_path.write_bytes(b"fake image bytes")
     response = SimpleNamespace(
         text=(
-            '{"results":[{"challenge_condition_id":1,"status":"MET"},'
-            '{"challenge_condition_id":2,"status":"NOT_MET"}]}'
+            '{"results":[{"challenge_condition_id":1,"status":"MET",'
+            '"reason":"A bottle is visible."},{"challenge_condition_id":2,'
+            '"status":"NOT_MET","reason":"No drinking action is visible."}]}'
         ),
         usage_metadata=SimpleNamespace(
             prompt_token_count=20,
