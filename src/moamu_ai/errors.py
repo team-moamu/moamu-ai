@@ -18,6 +18,18 @@ class ImageUnreadableError(PhotoVerificationError):
     pass
 
 
+class ImageFetchFailedError(PhotoVerificationError):
+    pass
+
+
+class UnsupportedImageError(PhotoVerificationError):
+    pass
+
+
+class ImageStoreConfigurationError(PhotoVerificationError):
+    pass
+
+
 class ProviderConfigurationError(PhotoVerificationError):
     pass
 

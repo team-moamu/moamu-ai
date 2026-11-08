@@ -32,6 +32,7 @@ class FakeJudge:
                         if item.challenge_condition_id == 1
                         else ConditionStatus.NOT_MET
                     ),
+                    reason="The mocked result includes a reason.",
                 )
                 for item in conditions
             ],

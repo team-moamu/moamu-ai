@@ -11,11 +11,11 @@
 
 ## 코드에서 버전 관리하고 선택하기
 
-각 버전의 고정 지침과 조건 직렬화 방식은 [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에 별도 항목으로 보존한다. 과거 정의를 수정하지 않고 새 버전을 추가한다. `get_prompt_definition(version)`으로 버전 정의를 조회하고, `build_verification_prompt(conditions, version=...)`로 해당 버전의 요청 프롬프트를 만든다.
+각 버전의 고정 지침은 [`src/moamu_ai/prompt_versions/`](../../src/moamu_ai/prompt_versions/) 아래 별도 파일에 보존하고, [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에서 선택한다. 과거 정의를 수정하지 않고 새 버전을 추가한다. `get_prompt_definition(version)`으로 버전 정의를 조회하고, `build_verification_prompt(conditions, version=...)`로 해당 버전의 요청 프롬프트를 만든다.
 
 서비스는 `.env`의 `AI_PROMPT_VERSION`을 사용하며 기본값은 `photo-verification-v4`다. 평가 실행은 `--prompt-version photo-verification-v2`처럼 버전을 지정할 수 있고, 이 값은 `.env` 설정보다 우선한다. 결과 파일에는 실제로 사용한 버전, 프롬프트 템플릿 해시, 조건을 붙인 프롬프트 해시가 함께 기록된다.
 
-v1은 조건 ID·코드·유형·설명·필수 여부·정렬 순서를 모델에 보낸다. v2 이후는 ID와 설명만 보낸다. 버전 정의에는 프롬프트 문구뿐 아니라 이 입력 형식 차이도 보존한다.
+v1은 평가용 조건 스냅샷의 ID·코드·유형·설명·필수 여부·정렬 순서를 모델 입력에 포함한다. v2 이후는 ID와 설명만 포함한다. 현재 백엔드 HTTP 요청은 조건 코드와 설명을 받으며, `condition_type`, `required`, `sort_order`는 과거 평가 매니페스트에만 남아 있다. 버전 정의에는 프롬프트 문구뿐 아니라 이 입력 형식 차이도 보존한다.
 
 ## `photo-verification-v1`
 
@@ -33,7 +33,7 @@ v1은 조건 ID·코드·유형·설명·필수 여부·정렬 순서를 모델�
 
 **상태:** API 기준 프롬프트. 2026-11-02 파일럿에서 평가했으며, 현재 후보인 v4로 대체됐다.
 
-**v1에서 바뀐 점:** 모델에는 `challenge_condition_id`와 자연어 `description`만 전달한다. `code`, `condition_type`, `required`, `sort_order`는 백엔드 요청 계약에 남아 있지만 사진 판정에는 필요하지 않다. API는 전달받은 각 조건 ID에 대해 상태 하나를 반환한다.
+**v1에서 바뀐 점:** 모델에는 `challenge_condition_id`와 자연어 `description`만 전달한다. `code`는 백엔드 요청에는 포함되지만 사진 판정 입력에는 필요하지 않다. `condition_type`, `required`, `sort_order`는 과거 매니페스트의 필드이며 현재 HTTP 요청 계약에는 없다. API는 요청 순서에 대응하는 각 조건 판정과 사유를 반환한다.
 
 고정 지침 문구는 v1과 같다. 모델에 전달되는 조건 정보만 ID와 설명으로 줄였으므로 v1과 결과를 비교하려면 이 버전으로 새 기준선을 측정해야 한다.
 

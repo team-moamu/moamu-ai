@@ -1,134 +1,159 @@
-# 내부 사진 판정 API
+# 내부 AI 사진 판정 API 계약
 
 ## 담당 범위
 
-사진 업로드, MIME/파일 형식 및 용량 검사, 인증 시도 생성, 재시도·복구, 최종
-`SUCCESS` / `FAILED` / `REVIEW_REQUIRED` 판정은 백엔드 담당이다. 이 서비스는
-내부 테스트용 로컬/공유 볼륨 경로를 받아 확정된 인증 조건 스냅샷을 평가한다.
-공유 볼륨은 아직 확정되지 않았으며 `AI_IMAGE_ROOT`가 서비스에서 읽을 수 있는
-파일 범위를 제한한다.
+백엔드는 인증 사진 업로드, 이미지 형식·용량 검사, `verification` 및 `ai_task`
+생성, 재시도와 작업 복구, 최종 인증 상태 결정을 담당한다. AI 서버는 저장된
+사진을 읽고 요청에 포함된 모든 인증 조건을 각각 판정한다. 전체 인증 결과는
+AI 서버가 합산하지 않는다.
 
-기능 명세에는 각 상태와 함께 사유를 반환하라고 되어 있다. 이 대화에서 백엔드와
-합의한 전달 형식은 상태만 반환하는 것이다. 따라서 현재 응답에는 조건 ID와 상태만
-포함되며 모델 사유나 신뢰도 필드는 없다. 백엔드가 사용자 안내용 사유를 필요로 하면
-계약을 다시 검토한다.
+## 백엔드 DB 기준
+
+이 계약은 백엔드 저장소의 Flyway 마이그레이션 파일 V1~V6을 기준으로 한다. V3~V5에서
+조건 테이블의 `condition_type`, `required`, `sort_order`가 제거됐고 V6은 `users.login_id`만
+변경하므로 사진 판정 요청에는 영향을 주지 않는다. 백엔드는 현재 조건의 `code`,
+`description`과 사진의 S3 `image_key`를 AI 서버에 전달한다.
+
+평가 데이터의 `ConditionSnapshot`에 남아 있는 `condition_type`, `required`, `sort_order`는
+실험 데이터용 메타데이터다. 최신 백엔드 DB 컬럼이나 AI HTTP 요청 필드가 아니다. 실제
+적용 버전은 환경의 Flyway 이력으로 확인해야 한다.
 
 ## `POST /internal/photo-verifications`
 
-백엔드는 활성 도전의 인증 조건 스냅샷을 보낸다. AI 엔드포인트는 조건 유형을
-추론하거나 조건 코드를 만들지 않는다. 전달받은 설명을 각각 판정하고 상태를
-반환한다.
+백엔드 서버에서만 호출하는 내부 API다. JSON 요청의 조건에는 백엔드 DB의 내부
+ID, 조건 유형, 필수 여부, 정렬 순서를 포함하지 않는다. AI 서버는 요청된 각
+조건을 판정하고 같은 조건 `code`를 사용해 결과를 돌려준다.
 
-요청 본문:
+이 프로토타입은 요청 헤더 기반 서비스 인증을 정의하지 않는다. 배포 시에는 AI
+서버를 내부 네트워크에만 노출하고 백엔드 서버만 접근하도록 네트워크 정책을
+설정해야 한다.
+
+### 요청
 
 ```json
 {
-  "image_path": "attempts/123/proof.jpg",
+  "ai_task_id": "1",
+  "verification_id": "1",
+  "image_key": "verifications/photo.jpg",
   "conditions": [
     {
-      "challenge_condition_id": 301,
       "code": "C1",
-      "condition_type": "OBJECT_PRESENT",
-      "description": "책 또는 학습 노트가 사진에 보여야 한다",
-      "required": "Y",
-      "sort_order": 1
+      "description": "컵이 사진에 보여야 한다"
     },
     {
-      "challenge_condition_id": 302,
       "code": "C2",
-      "condition_type": "HANDWRITTEN_RECORD",
-      "description": "직접 작성한 학습 메모가 사진에서 식별되어야 한다",
-      "required": "Y",
-      "sort_order": 2
-    },
-    {
-      "challenge_condition_id": 303,
-      "code": "C3",
-      "condition_type": "RESULT_OUTPUT",
-      "description": "학습한 내용을 정리한 요약문 또는 문제 풀이 결과가 사진에 보여야 한다",
-      "required": "Y",
-      "sort_order": 3
-    },
-    {
-      "challenge_condition_id": 304,
-      "code": "C4",
-      "condition_type": "PLACE",
-      "description": "학습 자료를 놓은 책상이나 학습 공간이 사진에서 확인되어야 한다",
-      "required": "Y",
-      "sort_order": 4
-    },
-    {
-      "challenge_condition_id": 305,
-      "code": "C5",
-      "condition_type": "DATE_VISIBLE",
-      "description": "학습 기록에 적힌 날짜가 사진에서 식별되어야 한다",
-      "required": "N",
-      "sort_order": 5
+      "description": "손이 컵을 잡고 있어야 한다"
     }
   ]
 }
 ```
 
-위 예시는 공부 템플릿(`goal_template_id=3`)이다. 나머지 다섯 도전 템플릿도 같은
-필드 구조를 사용하며 각 템플릿의 조건 행과 설명을 전달한다. 조건 스냅샷은 2~5개를
-받고, 그중 필수 조건이 최소 2개여야 한다. `required`에는 백엔드의 `Y` / `N` 값을
-사용한다(평가 매니페스트에서는 불리언을 사용할 수 있다). 백엔드 템플릿 시드에는
-`goal_template_condition_id`가 있지만, 판정 요청에는 활성 도전 스냅샷의
-`challenge_condition_id`를 사용해야 하며 이 값은 `verification_check`와 연결된다.
-템플릿 ID, `goal_template_id`, 감사 시각은 AI 엔드포인트에 필요하지 않다.
-지원하는 `condition_type` 값은 `OBJECT_PRESENT`, `ACTIVITY_IN_PROGRESS`,
-`HANDWRITTEN_RECORD`, `SCREEN_RECORD`, `RESULT_OUTPUT`, `PLACE`, `DATE_VISIBLE`이며,
-`DATE_VISIBLE`은 `required: "N"`으로 보내야 한다.
+| 필드 | 의미 | 검사 |
+|---|---|---|
+| `ai_task_id` | 백엔드가 생성한 AI 작업 ID | 비어 있지 않은 문자열 |
+| `verification_id` | 인증 시도 ID | 비어 있지 않은 문자열 |
+| `image_key` | S3 객체 키 | 비어 있지 않은 문자열 |
+| `conditions` | 판정할 조건 목록 | 비어 있으면 안 됨 |
+| `conditions[].code` | 해당 도전 내 조건 구분 코드 | 요청 안에서 중복되면 안 됨 |
+| `conditions[].description` | 자연어 판정 조건 | 비어 있으면 안 됨 |
 
-상태는 요청에 포함된 순서대로 반환한다. 서비스는 모델 응답에서 조건 ID가 누락되거나
-추가되거나 중복되면 거부한다. 필수 조건 결과를 합쳐 최종 인증 상태를 계산하는 일은
-백엔드 담당이다.
+조건 개수에 고정된 상한은 없다. 요청에 포함된 모든 조건을 판정하며, API 요청에
+`required`, `condition_type`, DB ID, `sort_order`를 추가하지 않는다. 조건 코드와
+요청 ID를 응답에서 그대로 돌려주므로 백엔드가 요청·응답 대응을 검증할 수 있다.
 
-성공 응답:
+```bash
+curl -X POST 'http://127.0.0.1:8000/internal/photo-verifications' \
+  -H 'Content-Type: application/json' \
+  --data '{"ai_task_id":"1","verification_id":"1","image_key":"verifications/photo.jpg","conditions":[{"code":"C1","description":"컵이 사진에 보여야 한다"},{"code":"C2","description":"손이 컵을 잡고 있어야 한다"}]}'
+```
+
+### 성공 응답
 
 ```json
 {
-  "results": [
-    {"challenge_condition_id": 301, "status": "MET"},
-    {"challenge_condition_id": 302, "status": "MET"},
-    {"challenge_condition_id": 303, "status": "UNCERTAIN"},
-    {"challenge_condition_id": 304, "status": "MET"},
-    {"challenge_condition_id": 305, "status": "NOT_MET"}
-  ]
+  "ai_task_id": "1",
+  "verification_id": "1",
+  "processing_status": "SUCCEEDED",
+  "checks": [
+    {
+      "code": "C1",
+      "status": "MET",
+      "reason": "사진에서 컵이 확인됩니다."
+    },
+    {
+      "code": "C2",
+      "status": "UNCERTAIN",
+      "reason": "손이 컵을 잡고 있는 부분이 가려져 있습니다."
+    }
+  ],
+  "model_version": "gemini-3.5-flash-lite"
 }
 ```
 
-오류 응답은 FastAPI의 `detail` 객체에 변하지 않는 `code`와 짧은 메시지를 담는다.
+- `checks`에는 요청 조건마다 결과가 정확히 하나씩 들어간다.
+- `checks[].status`는 `MET`, `NOT_MET`, `UNCERTAIN` 중 하나다.
+- `checks[].reason`은 조건별 판정 사유이며 최대 500자다.
+- `model_version`은 AI 판정 파이프라인 버전이며 최대 50자다. 기본값은
+  `photo-verifier-v1`이고 `AI_MODEL_VERSION`으로 배포 버전을 지정한다. 실제 공급자
+  모델 ID는 서버의 `GEMINI_MODEL` 또는 `OLLAMA_MODEL` 설정으로 관리한다.
+- 분석이 정상 완료됐다면 일부 조건이 `NOT_MET` 또는 `UNCERTAIN`이어도 HTTP 200이다.
+- 백엔드는 `NOT_MET`이 하나라도 있으면 `FAILED`, 그렇지 않고 `UNCERTAIN`이 있으면
+  `REVIEW_REQUIRED`, 모두 `MET`이면 `SUCCESS`로 판정한다. `NOT_MET`과
+  `UNCERTAIN`이 함께 있으면 `FAILED`가 우선한다.
+
+### 오류 응답
+
+```json
+{
+  "ai_task_id": "1",
+  "verification_id": "1",
+  "processing_status": "ERROR",
+  "error": {
+    "code": "MODEL_UNAVAILABLE",
+    "message": "현재 판정 모델을 사용할 수 없습니다."
+  }
+}
+```
 
 | HTTP | 코드 | 의미 |
 |---:|---|---|
-| 403 | `IMAGE_PATH_NOT_ALLOWED` | 확인된 파일이 `AI_IMAGE_ROOT` 바깥에 있음 |
-| 404 | `IMAGE_NOT_FOUND` | 경로가 없거나 일반 파일이 아님 |
-| 422 | `IMAGE_NOT_READABLE` | 파일을 읽을 수 없음 |
-| 422 | 검증 오류 | 요청 또는 스키마가 올바르지 않음 |
-| 502 | `INVALID_MODEL_OUTPUT` | 모델 응답이 조건 ID 또는 스키마와 일치하지 않음 |
-| 503 | `IMAGE_ROOT_UNAVAILABLE` | 설정한 이미지 루트를 사용할 수 없음 |
-| 503 | `AI_PROVIDER_NOT_CONFIGURED` | Gemini 키 또는 제공자 설정이 누락됨 |
-| 503 | `AI_PROVIDER_ERROR` | 모델 요청이 실패했거나 시간 초과됨 |
+| 400 | `INVALID_REQUEST` | 요청 형식 또는 필수 값 오류 |
+| 422 | `UNSUPPORTED_IMAGE` | 모델이 지원하지 않는 이미지 |
+| 422 | `IMAGE_FETCH_FAILED` | S3 사진 조회 실패 |
+| 500 | `INTERNAL_ERROR` | AI 서버 내부 오류 또는 스토리지 설정 오류 |
+| 503 | `MODEL_UNAVAILABLE` | 모델 장애, 시간 초과, 설정 오류 또는 모델 응답 검증 실패 |
 
-이 엔드포인트는 로컬 경로의 존재 여부와 읽기 가능 여부만 확인한다. 이미지 MIME
-유형이나 파일 용량은 검사하지 않는다. 로컬 개발에서는 `127.0.0.1`에 바인딩한다.
-내부 서비스로 배포할 때는 외부에 노출하기 전에 네트워크를 격리하고 백엔드 서비스
-인증을 추가해야 한다.
+요청 형식 오류로 두 ID를 읽지 못하면 오류 응답에서 해당 ID는 `null`이다. 이미지
+조회 실패나 모델 기술 오류는 사용자 인증 실패로 간주하지 않는다. 백엔드는 해당
+요청을 일일 사용자 인증 횟수에서 제외하고, 기술적 재시도에는 같은 `ai_task_id`를
+사용한다.
 
-## 모델 입력·출력
+## 이미지 저장소 설정
 
-모델에는 이미지와 각 조건의 ID·자연어 설명을 전달한다. v2 이후 버전은 DB 코드,
-조건 유형, 필수 여부, 정렬 순서를 전달하지 않는다. 프롬프트 문구와 직렬화 방식은
-`src/moamu_ai/prompts.py`에 버전별로 보존한다. `AI_PROMPT_VERSION`으로 서비스 버전을
-선택하며 기본값은 `photo-verification-v4`다. 벤치마크 CLI는 `--prompt-version`으로
-이를 덮어쓸 수 있다. v4는 조건에 명시된 대상·행동·형태의 시각적 증거를 요구하고,
-이미지가 모호하거나 가려진 경우 `UNCERTAIN`을 반환한다. Gemini와 Ollama는 제한된
-JSON 형식으로 응답하며, 서비스는 반환 전에 모델 응답을 다시 검증한다.
+운영 호출은 `image_key`를 S3 객체 키로 사용한다. 서버가 S3에서 사진을 임시 파일로
+가져와 모델에 전달하고, 판정이 끝나면 임시 파일을 삭제한다. 파일 형식과 용량은
+백엔드 업로드 경계에서 검사하며 AI 서버는 별도로 크기 제한을 적용하지 않는다.
 
-FastAPI 요청·응답 모델은 공식 [요청 본문 안내](https://fastapi.tiangolo.com/tutorial/body/)
-방식을 따른다. Gemini는 공식 [이미지 입력](https://ai.google.dev/gemini-api/docs/image-understanding)과
-[구조화된 출력](https://ai.google.dev/gemini-api/docs/structured-output) 인터페이스를 사용한다.
-Ollama는 공식 [비전 이미지 입력](https://docs.ollama.com/capabilities/vision),
-[채팅 API](https://docs.ollama.com/api/chat),
-[구조화된 출력](https://docs.ollama.com/capabilities/structured-outputs)을 사용한다.
+```dotenv
+AI_IMAGE_SOURCE=s3
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+AWS_REGION=ap-northeast-2
+S3_BUCKET=moamu-s3-bucket
+```
+
+로컬 계약 테스트는 `AI_IMAGE_SOURCE=local`, `AI_IMAGE_ROOT=./data/images`를 설정하고
+`image_key`에 해당 디렉터리 아래 상대 경로를 넣는다. 로컬 모드는 개발 테스트용이며
+운영 환경은 S3를 사용한다.
+
+## 판정 모델 입출력
+
+Gemini 또는 Ollama 어댑터에는 이미지와 조건의 내부 순번, `code`, `description`이
+전달된다. 모델 출력의 내부 순번을 검증한 뒤 요청 조건 코드에 다시 연결한다.
+모델이 조건을 누락·중복하거나 요청 범위 밖의 결과를 내면 기술 오류로 처리하고
+정상 인증 응답을 반환하지 않는다. 모델 입력에는 내부 조건 순번과 자연어 설명을
+직렬화하며, 요청 코드는 결과를 백엔드 요청 순서에 다시 연결하는 데 사용한다.
+프롬프트의 기본 버전은 `photo-verification-v4`이며 각 버전은
+`src/moamu_ai/prompt_versions/` 아래에서 독립 관리한다. 벤치마크 CLI는
+`--prompt-version`으로 별도 버전을 선택할 수 있다. 모델 응답 스키마는 조건별
+판정 사유를 요구하고, API는 이를 `checks[].reason`으로 반환한다.

@@ -98,7 +98,7 @@ Notion에는 네 개의 연결된 표를 둔다. **모델 카탈로그**는 모�
 | `photo-verification-v3` | 미채택 실험 | 조건 ID와 설명만 | 조건에 구체적으로 적힌 대상의 시각 증거를 요구하고 유사한 물건으로 대체하지 않도록 지시 | 영양제 2장 집중 평가에서 불투명 용기는 보류에서 `NOT_MET`으로 바뀌었지만 구미 오승인은 남음 | 미채택 |
 | `photo-verification-v4` | 현재 기본값·검증 후보 | 조건 ID와 설명만 | v3 지침에 “구미 사탕은 정제나 캡슐이 아니다”라는 형태 구분 예시 추가 | v2와 같은 30장·60조건에서 58/60 일치, 오승인 0건, 오거절 1건 | 기본값으로 사용. 추가 검증 필요 |
 
-현재 코드의 버전별 원문은 [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에서 관리한다. 서비스 기본 버전은 `.env`의 `AI_PROMPT_VERSION`으로 선택하며 기본값은 v4다. 평가 명령은 `--prompt-version photo-verification-v2`처럼 지정할 수 있다. 새 버전은 기존 항목을 수정하지 않고 새 ID로 추가한다.
+현재 코드의 버전별 원문은 [`src/moamu_ai/prompt_versions/`](../../src/moamu_ai/prompt_versions/) 아래에 각각 보존하고, [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에서 선택한다. 서비스 기본 버전은 `.env`의 `AI_PROMPT_VERSION`으로 선택하며 기본값은 v4다. 평가 명령은 `--prompt-version photo-verification-v2`처럼 지정할 수 있다. 새 버전은 기존 항목을 수정하지 않고 새 ID로 추가한다.
 
 ## 4. 평가 데이터셋
 
