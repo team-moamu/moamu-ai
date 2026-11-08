@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 실행 중인 로컬 API에 사진 인증 테스트 요청을 보낸다.
 set -euo pipefail
 
 if [[ $# -gt 3 ]]; then

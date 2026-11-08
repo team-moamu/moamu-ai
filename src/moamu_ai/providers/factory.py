@@ -6,6 +6,17 @@ from moamu_ai.providers.ollama import OllamaPhotoJudge
 
 
 def create_photo_judge(settings: Settings) -> PhotoJudge:
+    """설정된 공급자에 맞는 사진 판정기를 생성한다.
+
+    Args:
+        settings: 공급자, 모델, 인증 정보가 담긴 앱 설정.
+
+    Returns:
+        Gemini 또는 Ollama 판정기.
+
+    Raises:
+        ProviderConfigurationError: 인증 키가 없거나 공급자를 지원하지 않는 경우.
+    """
     if settings.ai_provider == "gemini":
         if settings.gemini_token_api_key is None:
             raise ProviderConfigurationError("GEMINI_TOKEN_API_KEY is not configured")

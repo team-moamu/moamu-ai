@@ -9,9 +9,22 @@ from moamu_ai.errors import (
 
 
 def resolve_image_path(image_path: str, allowed_root: Path) -> Path:
-    """Resolve a readable image file under the configured local test volume.
+    """허용된 로컬 루트 안에 있는 읽을 수 있는 이미지 경로를 확인한다.
 
-    File format and size are intentionally left to the backend upload boundary.
+    Args:
+        image_path: 루트 기준 상대 경로 또는 이미지 절대 경로.
+        allowed_root: 접근 가능한 경로로 제한할 최상위 디렉터리.
+
+    Returns:
+        존재하고 읽을 수 있는 이미지 파일의 절대 경로.
+
+    Raises:
+        ImageRootUnavailableError: 루트 디렉터리를 사용할 수 없는 경우.
+        ImageNotFoundError: 이미지 파일이 존재하지 않는 경우.
+        ImagePathNotAllowedError: 이미지가 허용 루트 바깥에 있는 경우.
+        ImageUnreadableError: 경로 확인 또는 파일 읽기에 실패한 경우.
+
+    이미지 형식과 용량 검사는 백엔드 업로드 경계에서 수행한다.
     """
     try:
         root = Path(allowed_root).expanduser().resolve(strict=True)

@@ -8,6 +8,8 @@ from moamu_ai.prompts import DEFAULT_PROMPT_VERSION, get_prompt_definition
 
 
 class Settings(BaseSettings):
+    """환경 변수와 `.env`에서 AI 서버 설정을 읽는다."""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -35,5 +37,6 @@ class Settings(BaseSettings):
     @field_validator("ai_prompt_version")
     @classmethod
     def validate_prompt_version(cls, value: str) -> str:
+        """설정된 프롬프트 버전이 등록되어 있는지 확인한다."""
         get_prompt_definition(value)
         return value

@@ -10,7 +10,10 @@ from moamu_ai.schemas import ConditionResult, ConditionStatus
 
 
 class StaticJudge:
+    """API 테스트에서 고정 판정 결과를 제공하는 대역."""
+
     def evaluate(self, image_path: Path, conditions):
+        """요청 조건마다 지정된 테스트 판정을 반환한다."""
         return InferenceResult(
             results=[
                 ConditionResult(
@@ -29,6 +32,7 @@ class StaticJudge:
 
 
 def payload(image_key: str = "proof.jpg"):
+    """사진 인증 API 테스트용 요청 데이터를 만든다."""
     return {
         "ai_task_id": "task-1",
         "verification_id": "verification-1",
@@ -41,6 +45,7 @@ def payload(image_key: str = "proof.jpg"):
 
 
 def test_endpoint_returns_backend_contract_with_condition_reasons(tmp_path: Path):
+    """정상 요청이 백엔드 성공 응답 형식으로 반환되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "proof.jpg").write_bytes(b"test")
@@ -70,6 +75,7 @@ def test_endpoint_returns_backend_contract_with_condition_reasons(tmp_path: Path
 
 
 def test_endpoint_returns_error_envelope_for_invalid_request():
+    """잘못된 요청이 공통 오류 응답으로 변환되는지 확인한다."""
     app = create_app(settings=Settings(_env_file=None), judge=StaticJudge())
 
     response = TestClient(app).post(
@@ -90,6 +96,7 @@ def test_endpoint_returns_error_envelope_for_invalid_request():
 
 
 def test_endpoint_returns_fetch_error_when_image_key_does_not_exist(tmp_path: Path):
+    """이미지 조회 실패가 계약된 오류 코드로 반환되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     app = create_app(
@@ -109,12 +116,16 @@ def test_endpoint_returns_fetch_error_when_image_key_does_not_exist(tmp_path: Pa
 
 
 def test_endpoint_returns_model_unavailable_for_invalid_model_response(tmp_path: Path):
+    """잘못된 모델 결과가 모델 사용 불가 오류로 처리되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "proof.jpg").write_bytes(b"test")
 
     class IncompleteJudge:
+        """조건이 빠진 모델 응답을 흉내 내는 테스트 대역."""
+
         def evaluate(self, image_path, conditions):
+            """조건 일부가 누락된 테스트 판정을 반환한다."""
             return InferenceResult(
                 results=[],
                 usage=InferenceUsage(model="gemini-test", latency_ms=0),

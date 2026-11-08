@@ -11,6 +11,7 @@ from moamu_ai.image_paths import (
 
 
 def test_resolves_existing_image_inside_configured_root(tmp_path: Path):
+    """허용된 루트 안의 이미지 경로가 확인되는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
     image = root / "proof.jpg"
@@ -20,6 +21,7 @@ def test_resolves_existing_image_inside_configured_root(tmp_path: Path):
 
 
 def test_relative_path_is_resolved_from_root(tmp_path: Path):
+    """상대 경로가 설정된 이미지 루트를 기준으로 해석되는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
     (root / "proof.jpg").write_bytes(b"image data")
@@ -28,6 +30,7 @@ def test_relative_path_is_resolved_from_root(tmp_path: Path):
 
 
 def test_missing_path_is_rejected(tmp_path: Path):
+    """존재하지 않는 이미지 경로를 거부하는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
 
@@ -36,6 +39,7 @@ def test_missing_path_is_rejected(tmp_path: Path):
 
 
 def test_path_outside_configured_root_is_rejected(tmp_path: Path):
+    """허용된 루트 밖의 경로를 거부하는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
     outside = tmp_path / "private.txt"
@@ -46,6 +50,7 @@ def test_path_outside_configured_root_is_rejected(tmp_path: Path):
 
 
 def test_image_format_and_size_are_not_checked(tmp_path: Path):
+    """경로 검사에서 형식과 용량을 제한하지 않는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
     path = root / "large-unknown.bin"
@@ -55,6 +60,7 @@ def test_image_format_and_size_are_not_checked(tmp_path: Path):
 
 
 def test_unreadable_path_is_reported(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """읽을 수 없는 파일이 전용 오류로 보고되는지 검증한다."""
     root = tmp_path / "images"
     root.mkdir()
     image = root / "proof.jpg"
@@ -62,6 +68,7 @@ def test_unreadable_path_is_reported(tmp_path: Path, monkeypatch: pytest.MonkeyP
     original_open = Path.open
 
     def raise_permission_error(path: Path, *args, **kwargs):
+        """테스트 파일 읽기에서 권한 오류를 발생시킨다."""
         if path == image.resolve():
             raise PermissionError("denied")
         return original_open(path, *args, **kwargs)

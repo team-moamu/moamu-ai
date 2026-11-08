@@ -34,6 +34,17 @@ GEMINI_STANDARD_USD_PER_MILLION_TOKENS = {
 
 
 def load_manifest(path: Path) -> list[BenchmarkCase]:
+    """JSONL 평가 파일을 검증하고 사례 목록으로 읽는다.
+
+    Args:
+        path: 평가 사례가 한 줄에 하나씩 저장된 JSONL 파일 경로.
+
+    Returns:
+        스키마 검증을 마친 평가 사례 목록.
+
+    Raises:
+        ValueError: 행의 형식이 잘못되었거나 사례 ID가 중복된 경우.
+    """
     cases: list[BenchmarkCase] = []
     seen_case_ids = set()
     with Path(path).open("r", encoding="utf-8") as manifest:
@@ -52,6 +63,16 @@ def load_manifest(path: Path) -> list[BenchmarkCase]:
 
 
 def validate_run_limit(limit: int, provider: str, max_gemini_calls: int = 6) -> None:
+    """평가 실행 건수와 Gemini 호출 상한을 확인한다.
+
+    Args:
+        limit: 이번 평가에서 실행할 사례 수.
+        provider: 사용할 모델 공급자.
+        max_gemini_calls: Gemini 호출 허용 상한.
+
+    Raises:
+        ValueError: 사례 수가 양수가 아니거나 Gemini 상한을 넘는 경우.
+    """
     if limit < 1:
         raise ValueError("limit must be at least one case")
     if provider == "gemini" and limit > min(max_gemini_calls, 6):
@@ -59,6 +80,16 @@ def validate_run_limit(limit: int, provider: str, max_gemini_calls: int = 6) -> 
 
 
 def estimate_cost_usd(model: str, prompt_tokens, output_tokens) -> Optional[float]:
+    """등록된 토큰 단가로 추정 비용을 계산한다.
+
+    Args:
+        model: 비용표에 등록된 모델 이름.
+        prompt_tokens: 입력 토큰 수.
+        output_tokens: 출력 토큰 수.
+
+    Returns:
+        추정 비용(USD). 가격이나 토큰 수를 알 수 없으면 ``None``.
+    """
     prices = GEMINI_STANDARD_USD_PER_MILLION_TOKENS.get(model)
     if prices is None or prompt_tokens is None or output_tokens is None:
         return None
@@ -69,6 +100,15 @@ def estimate_cost_usd(model: str, prompt_tokens, output_tokens) -> Optional[floa
 
 
 def _percentile(values: list[float], percentile: float) -> Optional[float]:
+    """선형 보간 방식으로 백분위 지연 시간을 계산한다.
+
+    Args:
+        values: 지연 시간 측정값.
+        percentile: 구할 백분위 비율(0부터 1 사이).
+
+    Returns:
+        반올림한 백분위 값. 입력이 비어 있으면 ``None``.
+    """
     if not values:
         return None
     ordered = sorted(values)
@@ -80,12 +120,24 @@ def _percentile(values: list[float], percentile: float) -> Optional[float]:
 
 
 def compare_prompt_runs(previous: dict, current: dict) -> dict:
-    """Compare predictions from two saved benchmark runs without calling a model."""
+    """두 저장된 프롬프트 평가 결과를 비교한다.
+
+    Args:
+        previous: 이전 프롬프트 버전의 평가 결과.
+        current: 비교할 현재 프롬프트 버전의 평가 결과.
+
+    Returns:
+        예측 변경률, 오판율, 불확실 응답 변화가 담긴 결과.
+
+    Raises:
+        ValueError: 서로 다른 모델·사례·조건 구성을 비교한 경우.
+    """
     for field in ("provider", "models"):
         if previous.get(field) != current.get(field):
             raise ValueError(f"prompt runs must use the same {field}")
 
     def predictions(run: dict) -> tuple[set[str], dict[tuple[str, int], dict]]:
+        """평가 결과에서 사례와 조건별 예측을 색인한다."""
         case_ids = set()
         indexed = {}
         for case in run.get("cases", []):
@@ -190,6 +242,20 @@ def run_benchmark(
     max_gemini_calls: int = 6,
     prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> dict:
+    """평가 사례를 실행하고 예측, 사용량, 품질 지표를 모은다.
+
+    Args:
+        cases: 실행할 평가 사례 목록.
+        judge: 이미지 판정을 수행할 모델.
+        image_root: 로컬 평가 이미지의 허용 경로.
+        provider: 사용 모델 공급자 이름.
+        limit: 이번 실행에서 처리할 최대 사례 수.
+        max_gemini_calls: Gemini 평가 호출 상한.
+        prompt_version: 적용할 프롬프트 버전.
+
+    Returns:
+        실행 정보, 사례별 예측, 비용 추정, 종합 지표.
+    """
     validate_run_limit(limit, provider, max_gemini_calls=max_gemini_calls)
     prompt_definition = get_prompt_definition(prompt_version)
     selected = list(cases)[:limit]
@@ -320,6 +386,7 @@ def run_benchmark(
 
 
 def compare_main(argv: Optional[list[str]] = None) -> int:
+    """저장된 두 평가 결과를 비교하는 CLI를 실행한다."""
     parser = argparse.ArgumentParser(description="Compare saved prompt benchmark runs")
     parser.add_argument("previous", type=Path)
     parser.add_argument("current", type=Path)
@@ -331,6 +398,7 @@ def compare_main(argv: Optional[list[str]] = None) -> int:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """평가 manifest를 읽고 드라이런 또는 모델 평가를 실행한다."""
     parser = argparse.ArgumentParser(description="Run a bounded photo-verification benchmark")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--provider", choices=["gemini", "ollama"])

@@ -24,6 +24,8 @@ GEMINI_MAX_OUTPUT_TOKENS = 512
 
 
 class GeminiPhotoJudge:
+    """Gemini API로 이미지별 인증 조건을 판정한다."""
+
     def __init__(
         self,
         api_key: Optional[SecretStr],
@@ -33,6 +35,19 @@ class GeminiPhotoJudge:
         prompt_version: str = DEFAULT_PROMPT_VERSION,
         thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None,
     ):
+        """Gemini 클라이언트와 판정 옵션을 설정한다.
+
+        Args:
+            api_key: Gemini API 인증 키.
+            model: 사용할 Gemini 모델 이름.
+            timeout_seconds: 요청 제한 시간(초).
+            client: 테스트 등에 사용할 대체 클라이언트.
+            prompt_version: 적용할 프롬프트 버전.
+            thinking_level: Gemini 추론 단계 설정.
+
+        Raises:
+            ProviderConfigurationError: API 키가 비어 있는 경우.
+        """
         if api_key is None or not api_key.get_secret_value():
             raise ProviderConfigurationError("GEMINI_TOKEN_API_KEY is not configured")
         self.model = model
@@ -49,6 +64,19 @@ class GeminiPhotoJudge:
         )
 
     def evaluate(self, image_path: Path, conditions: list[ConditionSnapshot]) -> InferenceResult:
+        """Gemini에 이미지와 조건을 보내 판정 및 토큰 사용량을 반환한다.
+
+        Args:
+            image_path: 모델에 전달할 이미지 파일 경로.
+            conditions: 판정할 인증 조건 목록.
+
+        Returns:
+            조건별 판정 결과와 Gemini 사용량 정보.
+
+        Raises:
+            ModelProviderError: 이미지 읽기 또는 API 호출에 실패한 경우.
+            InvalidModelOutputError: Gemini 응답이 없거나 형식이 잘못된 경우.
+        """
         try:
             image_bytes = image_path.read_bytes()
         except OSError as exc:
@@ -106,7 +134,7 @@ class GeminiPhotoJudge:
 
 
 def _gemini_response_schema() -> dict:
-    """Build Gemini's supported schema subset from the stricter API models."""
+    """Pydantic 응답 모델을 Gemini가 지원하는 스키마로 변환한다."""
     schema = ModelJudgmentResponse.model_json_schema()
     pending = [schema]
     while pending:

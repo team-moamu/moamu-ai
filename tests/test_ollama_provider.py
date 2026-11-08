@@ -9,11 +9,13 @@ from moamu_ai.schemas import ConditionSnapshot, ConditionStatus
 
 
 def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: Path):
+    """로컬 이미지와 제한된 응답 스키마를 Ollama에 전달하는지 확인한다."""
     image_path = tmp_path / "proof.jpg"
     image_path.write_bytes(b"local test image")
     seen = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """테스트 HTTP 요청을 기록하고 가짜 Ollama 응답을 돌려준다."""
         seen["request"] = json.loads(request.content)
         return httpx.Response(
             200,
