@@ -1,36 +1,36 @@
-# Benchmark run log
+# 벤치마크 실행 기록
 
-This is the durable Markdown fallback for the requested Notion experiment page.
-The connected Notion integration returned a 404 even after the page was shared, so
-no Notion write was made. This file remains the source of record until access works.
+이 파일은 Notion 실험 페이지를 대신하는 Markdown 기록이다. 페이지 공유 후에도 연결된
+Notion 통합에서 404가 반환되어 Notion에는 기록하지 못했다. 접근이 가능해질 때까지
+이 파일을 공식 기록으로 사용한다.
 
-## Run entry template
+## 실행 기록 양식
 
-Copy this section for each run. One run is one provider/model × prompt version ×
-dataset revision/split combination.
+실행할 때마다 아래 양식을 복사한다. 한 번의 실행 기록은 제공자·모델 × 프롬프트 버전
+× 데이터셋 개정판/분할 조합 하나를 뜻한다.
 
 ```markdown
-### Run <run-id>
+### 실행 <run-id>
 
-- Started at (UTC):
-- Provider:
-- Model ID/tag and digest:
-- SDK/runtime version:
-- Hardware/OS (CPU/RAM for Ollama):
-- Prompt version and SHA-256:
-- Dataset revision and split:
-- Cases / image calls:
-- Input / output / total tokens:
-- Estimated cost (USD, price snapshot date):
-- p50 / p95 latency:
-- Accuracy / macro-F1:
-- False-accept rate:
-- False-reject rate:
-- UNCERTAIN rate / coverage / selective accuracy:
-- Decision:
-- Qualitative review and case IDs:
+- 시작 시각 (UTC):
+- 제공자:
+- 모델 ID/태그 및 digest:
+- SDK/런타임 버전:
+- 하드웨어/OS (Ollama는 CPU/RAM 포함):
+- 프롬프트 버전 및 SHA-256:
+- 데이터셋 개정판 및 분할:
+- 사례 수 / 이미지 호출 수:
+- 입력 / 출력 / 전체 토큰:
+- 예상 비용 (USD, 가격 확인 기준일):
+- p50 / p95 지연 시간:
+- 정확도 / macro-F1:
+- 오승인율:
+- 오거절율:
+- UNCERTAIN 비율 / coverage / selective accuracy:
+- 결정:
+- 정성 검토 및 사례 ID:
 
-| GoalTemplate | N | MET precision/recall | False accept | False reject | UNCERTAIN | Coverage | Error notes |
+| 도전 템플릿 | 건수 | MET 정밀도/재현율 | 오승인 | 오거절 | UNCERTAIN | coverage | 오류 메모 |
 |---|---:|---:|---:|---:|---:|---:|---|
 | STUDY_REVIEW | | | | | | | |
 | STAIRS_EXERCISE | | | | | | | |
@@ -40,102 +40,60 @@ dataset revision/split combination.
 | BADGE_CARRY | | | | | | | |
 ```
 
-## Run 3d91077d-0b9b-4818-a673-159d7a2bed6a — Open Images smoke test
+## 실행 3d91077d-0b9b-4818-a673-159d7a2bed6a — Open Images 스모크 테스트
 
-- Started at (UTC): `2026-10-27T14:30:21Z`
-- Provider/model: Gemini API / `gemini-3.5-flash-lite`
-- SDK/runtime: `google-genai 1.75.0`, Python `3.13.5`
-- Hardware: macOS 26.3.1, arm64 (cloud inference; local hardware does not run the model)
-- Prompt: `photo-verification-v1`; template SHA-256 `bba158afbae14bd5072c28d2b562d1220627d1efccd92ed88aececd2cf3c2302`
-- Dataset: Open Images V7 validation subset, development partition, image ID
-  `7b14d1d7166f9abd`; Google/Crowdsource-verified positive labels for Bottle and Person
-- Image: 640×480 convenience thumbnail; SHA-256
-  `04ef545876b44ce93de86ad211d6ba2b8c771344329811bd65fd67fafaaf2f13`
-- Attribution: “08.01.nigel hair” by `dolce_evita`, CC BY 2.0; [Flickr source](https://www.flickr.com/photos/astridge/5335975004)
-- Cases / image calls / conditions: `1 / 1 / 2`
-- Input / output / total tokens: `1,276 / 68 / 1,344`
-- Estimated cost: `$0.0005528` using the `2026-10-26` standard-price snapshot; this is an estimate, not billing data
-- p50 / p95 latency: `2,939.42 ms / 2,939.42 ms`
-- Results: `BOTTLE_VISIBLE MET` (expected MET); `PERSON_VISIBLE MET` (expected MET)
-- Metrics: accuracy `2/2`; macro-F1 `1.0`; false-reject rate `0/2`; `UNCERTAIN` `0/2`; coverage `2/2`
-- False-accept rate: not measurable because this case has no labeled `NOT_MET` conditions
-- Decision: smoke test confirms one structured Gemini request works. This is not evidence for the six MOAMU goal templates or the PRD's false-accept/acceptance targets.
+- 시작 시각 (UTC): `2026-10-27T14:30:21Z`
+- 제공자/모델: Gemini API / `gemini-3.5-flash-lite`
+- SDK/런타임: `google-genai 1.75.0`, Python `3.13.5`
+- 하드웨어: macOS 26.3.1, arm64 (클라우드 추론이며 로컬 하드웨어에서 모델을 실행하지 않음)
+- 프롬프트: `photo-verification-v1`; 템플릿 SHA-256 `bba158afbae14bd5072c28d2b562d1220627d1efccd92ed88aececd2cf3c2302`
+- 데이터셋: Open Images V7 검증 하위 세트, 개발 분할, 이미지 ID `7b14d1d7166f9abd`; Google/Crowdsource가 검증한 Bottle 및 Person 긍정 라벨
+- 이미지: 편의용 썸네일 640×480; SHA-256 `04ef545876b44ce93de86ad211d6ba2b8c771344329811bd65fd67fafaaf2f13`
+- 출처 표시: `dolce_evita`의 “08.01.nigel hair”, CC BY 2.0; [Flickr 원본](https://www.flickr.com/photos/astridge/5335975004)
+- 사례 수 / 이미지 호출 수 / 조건 수: `1 / 1 / 2`
+- 입력 / 출력 / 전체 토큰: `1,276 / 68 / 1,344`
+- 예상 비용: `2026-10-26` 표준 가격 기준 `$0.0005528`; 청구 금액이 아닌 추정치
+- p50 / p95 지연 시간: `2,939.42 ms / 2,939.42 ms`
+- 결과: `BOTTLE_VISIBLE MET` (기대 MET); `PERSON_VISIBLE MET` (기대 MET)
+- 지표: 정확도 `2/2`; macro-F1 `1.0`; 오거절율 `0/2`; `UNCERTAIN` `0/2`; coverage `2/2`
+- 오승인율: 이 사례에는 정답 `NOT_MET` 조건이 없어 측정 불가
+- 결정: 구조화된 Gemini 요청 1회가 동작함을 확인했다. 6개 MOAMU 도전 템플릿 성능이나 PRD의 오승인/승인 목표를 입증하지는 않는다.
 
-The image and raw JSON result stay in ignored local paths under `data/images/` and
-`data/evaluation/results/`. The one-line manifest is committed at
-`data/evaluation/open-images-v7-smoke.jsonl` so the case and labels can be
-reproduced after obtaining the source image. Initial attempts exposed unsupported
-Gemini schema fields; those requests returned no model result and are not scored.
+이미지와 원본 JSON 결과는 Git에서 제외되는 `data/images/` 및
+`data/evaluation/results/` 경로에 보관한다. 한 줄 매니페스트는 원본 이미지를 다시
+구한 뒤 사례와 라벨을 재현할 수 있도록 `data/evaluation/open-images-v7-smoke.jsonl`에
+커밋했다. 초기 시도에서는 Gemini가 지원하지 않는 스키마 필드가 확인됐다. 해당 요청은
+모델 결과를 반환하지 않아 평가에서 제외했다.
 
-## Current status
+## 현재 상태
 
-- One Open Images V7 object-presence case, 18 manually selected Pexels positive
-  photos, and a 30-photo six-category development pilot have been evaluated with
-  Gemini. The v2/v4 comparison and added mixed cases are recorded in
-  [the 2026-11-02 pilot report](six-category-v2-pilot-20261102.md).
-- The benchmark runner defaults to dry-run and caps Gemini at six image calls per
-  execution. It records no image bytes and keeps generated result files ignored.
-- The earlier six-challenge smoke set contains only positive examples. The new
-  pilot adds two negative condition labels per category, but has no held-out
-  split or independent double annotation. Its false-accept rate is diagnostic
-  only; it does not establish the PRD target.
+- Open Images V7 객체 존재 사례 1개, 수동 선택한 Pexels 긍정 사진 18장, 6개 유형 30장 개발 파일럿을 Gemini로 평가했다. v2/v4 비교와 혼합 사례는 [2026-11-02 파일럿 보고서](six-category-v2-pilot-20261102.md)에 기록했다.
+- 벤치마크 실행기는 기본적으로 dry-run이며, Gemini 이미지 호출은 실행당 최대 6회다. 이미지 바이트는 결과에 저장하지 않으며 생성된 결과 파일은 Git에서 제외한다.
+- 이전 6개 도전 스모크 세트에는 긍정 사례만 있다. 새 파일럿에는 카테고리별 부정 조건 라벨이 2개씩 포함됐지만, held-out 분할이나 독립 이중 검수는 없다. 파일럿의 오승인율은 진단용이며 PRD 목표를 입증하지 않는다.
 
-## Run 2026-10-27 — Six challenge positive smoke set
+## 실행 2026-10-27 — 6개 도전 긍정 스모크 세트
 
-- Manifest: `data/evaluation/six-challenge-positive-20261027.jsonl` (18 cases,
-  36 manually reviewed positive condition labels). Original supplement wording is
-  preserved in `data/evaluation/six-challenge-positive-v1-20261027.jsonl`.
-- Source: 18 Pexels photos, resized to 640px and kept only in ignored local image
-  paths. The per-image creator, source page, license, and SHA-256 are recorded in
-  [the evaluation details](six-challenge-positive-smoke.md).
-- Provider/model: Gemini API / `gemini-3.5-flash-lite`.
-- Stable prompt: `photo-verification-v1`; the supplemental retest changed only
-  the supplement condition description.
-- Calls: 18 across three six-image runs, then 3 focused supplement retest calls;
-  21 total image calls, 42 condition predictions.
-- Initial result: 35/36 conditions `MET`, 1/36 `NOT_MET`, 0 `UNCERTAIN`. The
-  rejected condition asked for pills outside the container, but the positive
-  photo showed them inside a clear vial.
-- Retest: after changing the condition to include visible pills inside or
-  outside the container, the three supplement photos returned 6/6 `MET`.
-- Effective final positive set: 36/36 `MET`. This set has no negative or
-  uncertain examples, so false-accept rate is not measurable.
-- Tokens: 27,751 input; 1,366 output; 29,117 total across all 21 calls.
-- Estimated cost: `$0.0117403` at the current standard paid token prices; not a
-  billing receipt. Aggregate p50/p95 latency: `1,819.25 / 2,869.04 ms`.
-- Raw JSON outputs remain ignored under `data/evaluation/results/`; run IDs and
-  per-case outcomes are preserved in the evaluation details page.
-- Decision: Gemini passed this curated positive smoke set after one condition
-  phrase was clarified. This does not establish general performance or satisfy
-  the false-accept target; add hard negatives and ambiguous examples next.
+- 매니페스트: `data/evaluation/six-challenge-positive-20261027.jsonl` (사례 18개, 사람이 검토한 긍정 조건 라벨 36개). 최초 영양제 조건 문구는 `data/evaluation/six-challenge-positive-v1-20261027.jsonl`에 보존했다.
+- 출처: Pexels 사진 18장. 640px로 크기를 조정해 Git에서 제외되는 로컬 이미지 경로에만 저장했다. 사진별 제작자, 원본 페이지, 라이선스, SHA-256은 [평가 세부 기록](six-challenge-positive-smoke.md)에 있다.
+- 제공자/모델: Gemini API / `gemini-3.5-flash-lite`.
+- 고정 프롬프트: `photo-verification-v1`; 추가 재시험에서는 영양제 조건 설명만 바꿨다.
+- 호출: 6장씩 3회 실행해 18회, 영양제 집중 재시험 3회. 이미지 호출은 총 21회, 조건별 예측은 42개다.
+- 최초 결과: 조건 36개 중 `MET` 35개, `NOT_MET` 1개, `UNCERTAIN` 0개. 실패 조건은 용기 밖 알약을 요구했지만 긍정 사진의 알약은 투명한 병 안에 있었다.
+- 재시험: 용기 안팎으로 보이는 알약을 조건에 포함한 뒤 영양제 사진 3장을 다시 평가해 `MET` 6/6을 얻었다.
+- 최종 긍정 세트: `MET` 36/36. 부정·모호 사례가 없으므로 오승인율은 측정할 수 없다.
+- 토큰: 21회 전체 호출에서 입력 27,751, 출력 1,366, 전체 29,117개.
+- 예상 비용: 현재 표준 유료 토큰 가격 기준 `$0.0117403`; 청구서가 아니다. 전체 p50/p95 지연 시간은 `1,819.25 / 2,869.04 ms`다.
+- 원본 JSON 결과는 `data/evaluation/results/` 아래 Git 제외 경로에 있다. 실행 ID와 사례별 결과는 평가 세부 기록에 보존했다.
+- 결정: 조건 문구 하나를 명확히 한 뒤 이 선별된 긍정 스모크 세트에서는 Gemini가 통과했다. 일반 성능이나 오승인 목표 달성을 입증하지 않으며, 다음에는 어려운 부정·모호 사례를 추가해야 한다.
 
-## Run 2026-11-02 — Six-category prompt tuning pilot
+## 실행 2026-11-02 — 6개 유형 프롬프트 조정 파일럿
 
-- Manifest: `data/evaluation/six-challenge-v2-pilot-20261102.jsonl` (30 photos,
-  60 condition labels; 18 prior positive photos and 12 newly sourced mixed
-  cases). All cases are in `dev`; there is no held-out set.
-- Source and labels: Pexels. The new 12 images have one `MET` and one
-  `NOT_MET` condition each, labeled once by manual visual review. The pilot
-  report records source URLs, license notes, hashes, and ambiguous-label caveats.
-- Provider/model: Gemini API / `gemini-3.5-flash-lite`; `google-genai 1.75.0`,
-  Python `3.13.5`.
-- Prompt loop: v2 baseline (30 calls); v3 exact-evidence instruction on two
-  targeted supplement cases (2 calls); v4 explicit form distinction on the same
-  30 cases (30 calls). The runner's six-image per-execution cap was observed.
-- v2: 57/60 predictions match (95.0%); false accepts 1/12 negative labels
-  (8.3%); false rejects 0/48 positive labels; `UNCERTAIN` 2/60. Tokens
-  `38,000 / 2,036` input/output; estimated cost `$0.0164900`.
-- v3 targeted check: gummy false accept remained; opaque-container result
-  changed from `UNCERTAIN` to `NOT_MET`. Tokens `2,685 / 138`; estimated cost
-  `$0.0011505`.
-- v4: 58/60 predictions match (96.7%); false accepts 0/12; false rejects
-  1/48; `UNCERTAIN` 1/60. Tokens `40,400 / 2,066`; estimated cost `$0.0172850`.
-- Total: 62 image calls, estimated `$0.0349255` at the recorded Standard token
-  prices. This is a token-based estimate, not billing data. Per-run p50/p95,
-  detailed case outcomes, and limitations are in the
-  [pilot report](six-category-v2-pilot-20261102.md).
-- Decision: retain v4 as the next candidate, not as a validated winner. It
-  corrected the supplement gummy false accept, but the study action label needs
-  independent review and each category has only two negative condition labels.
-  Do not claim that the PRD target is met or continue tuning until the labels and
-  actual backend condition snapshot are confirmed.
+- 매니페스트: `data/evaluation/six-challenge-v2-pilot-20261102.jsonl` (사진 30장, 조건 라벨 60개; 기존 긍정 사진 18장과 새 혼합 사례 12장). 모든 사례가 `dev`에 있으며 held-out 세트는 없다.
+- 출처 및 라벨: Pexels. 신규 사진 12장에는 각각 `MET` 조건 하나와 `NOT_MET` 조건 하나가 있으며, 수동 육안 검토자 1명이 라벨링했다. 파일럿 보고서에 원본 URL, 라이선스 메모, 해시와 모호한 라벨 관련 주의사항을 기록했다.
+- 제공자/모델: Gemini API / `gemini-3.5-flash-lite`; `google-genai 1.75.0`, Python `3.13.5`.
+- 프롬프트 실험: v2 기준선(30회); 대상 증거 지침을 적용한 v3를 영양제 사례 2개에 집중 적용(2회); 같은 30개 사례에 형태 구분 문구를 추가한 v4 적용(30회). 실행당 이미지 6개 상한을 지켰다.
+- v2: 예측 60개 중 57개 일치(95.0%); 부정 라벨 12개 중 오승인 1개(8.3%); 긍정 라벨 48개 중 오거절 0개; `UNCERTAIN` 2/60. 토큰 입력/출력 `38,000 / 2,036`; 예상 비용 `$0.0164900`.
+- v3 집중 확인: 구미 오승인은 유지됐고, 불투명 용기 사례 결과는 `UNCERTAIN`에서 `NOT_MET`으로 바뀌었다. 토큰 `2,685 / 138`; 예상 비용 `$0.0011505`.
+- v4: 예측 60개 중 58개 일치(96.7%); 오승인 0/12; 오거절 1/48; `UNCERTAIN` 1/60. 토큰 입력/출력 `40,400 / 2,066`; 예상 비용 `$0.0172850`.
+- 전체: 이미지 호출 62회, 기록된 Standard 토큰 가격 기준 예상 비용 `$0.0349255`. 토큰 기반 추정치이며 실제 청구액이 아니다. 실행별 p50/p95, 세부 사례 결과와 한계는 [파일럿 보고서](six-category-v2-pilot-20261102.md)를 참고한다.
+- 결정: v4를 다음 평가 후보로 보존하되 검증된 승자로 보지는 않는다. 영양제 구미 오승인은 수정됐지만 공부 행동 라벨은 독립 검수가 필요하고, 각 유형의 부정 조건 라벨은 2개뿐이다. 라벨과 실제 백엔드 조건 스냅샷을 확인하기 전에는 PRD 목표 달성을 주장하거나 추가 조정을 진행하지 않는다.
