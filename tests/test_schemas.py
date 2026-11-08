@@ -3,83 +3,79 @@ from pydantic import ValidationError
 
 from moamu_ai.schemas import (
     ConditionResult,
-    ConditionSnapshot,
     ConditionStatus,
     PhotoVerificationRequest,
     PhotoVerificationResponse,
 )
 
 
-def condition(condition_id: int) -> ConditionSnapshot:
-    return ConditionSnapshot(
-        challenge_condition_id=condition_id,
-        code=f"condition_{condition_id}",
-        condition_type="OBJECT_PRESENT",
-        description=f"Object {condition_id} is visible",
-        required="Y",
-        sort_order=condition_id,
-    )
-
-
-def test_request_accepts_two_to_five_conditions_and_rejects_duplicate_ids():
-    request = PhotoVerificationRequest(
-        image_path="proof.jpg",
-        conditions=[condition(1), condition(2)],
-    )
-
-    assert len(request.conditions) == 2
-    with pytest.raises(ValidationError):
-        PhotoVerificationRequest(
-            image_path="proof.jpg",
-            conditions=[condition(1), condition(1)],
-        )
-
-
-@pytest.mark.parametrize("count", [1, 6])
-def test_request_requires_two_to_five_conditions(count: int):
-    with pytest.raises(ValidationError):
-        PhotoVerificationRequest(
-            image_path="proof.jpg",
-            conditions=[condition(index) for index in range(1, count + 1)],
-        )
-
-
-def test_request_requires_at_least_two_required_conditions():
-    optional_condition = condition(2).model_copy(update={"required": "N"})
-
-    with pytest.raises(ValidationError, match="at least two conditions must be required"):
-        PhotoVerificationRequest(
-            image_path="proof.jpg",
-            conditions=[condition(1), optional_condition],
-        )
-
-
-def test_response_contains_only_condition_identity_and_status():
-    response = PhotoVerificationResponse.model_validate(
+def test_api_request_uses_image_key_and_only_condition_code_and_description():
+    request = PhotoVerificationRequest.model_validate(
         {
-            "results": [
-                {
-                    "challenge_condition_id": 1,
-                    "status": "MET",
-                },
-                {"challenge_condition_id": 2, "status": "UNCERTAIN"},
-            ]
+            "ai_task_id": "task-1",
+            "verification_id": "verification-1",
+            "image_key": "verifications/photo.jpg",
+            "conditions": [
+                {"code": "C1", "description": "컵이 사진에 보여야 한다"},
+                {"code": "C2", "description": "손이 컵을 잡고 있어야 한다"},
+            ],
         }
     )
 
-    assert response.model_dump(mode="json") == {
-        "results": [
-            {"challenge_condition_id": 1, "status": "MET"},
-            {"challenge_condition_id": 2, "status": "UNCERTAIN"},
-        ]
-    }
-    assert set(ConditionStatus) == {
-        ConditionStatus.MET,
-        ConditionStatus.NOT_MET,
-        ConditionStatus.UNCERTAIN,
-    }
+    assert request.image_key == "verifications/photo.jpg"
+    assert [condition.code for condition in request.conditions] == ["C1", "C2"]
 
 
-def test_condition_result_still_rejects_non_positive_ids():
-    with pytest.raises(ValidationError, match="challenge_condition_id must be positive"):
-        ConditionResult(challenge_condition_id=0, status=ConditionStatus.MET)
+def test_api_request_rejects_duplicate_condition_codes():
+    with pytest.raises(ValidationError, match="unique"):
+        PhotoVerificationRequest(
+            ai_task_id="task-1",
+            verification_id="verification-1",
+            image_key="proof.jpg",
+            conditions=[
+                {"code": "C1", "description": "컵이 보인다"},
+                {"code": "C1", "description": "손이 보인다"},
+            ],
+        )
+
+
+def test_api_request_requires_at_least_one_condition():
+    with pytest.raises(ValidationError):
+        PhotoVerificationRequest(
+            ai_task_id="task-1",
+            verification_id="verification-1",
+            image_key="proof.jpg",
+            conditions=[],
+        )
+
+
+def test_api_response_echoes_ids_and_contains_reason_per_condition():
+    response = PhotoVerificationResponse.model_validate(
+        {
+            "ai_task_id": "task-1",
+            "verification_id": "verification-1",
+            "processing_status": "SUCCEEDED",
+            "checks": [
+                {"code": "C1", "status": "MET", "reason": "컵이 확인됩니다."},
+                {"code": "C2", "status": "UNCERTAIN", "reason": "손이 가려져 있습니다."},
+            ],
+            "model_version": "gemini-3.5-flash-lite",
+        }
+    )
+
+    assert response.checks[1].status is ConditionStatus.UNCERTAIN
+    assert response.model_dump(mode="json")["checks"][0]["reason"] == "컵이 확인됩니다."
+
+
+def test_condition_result_requires_reason_of_at_most_500_characters():
+    with pytest.raises(ValidationError):
+        ConditionResult(
+            challenge_condition_id=1,
+            status=ConditionStatus.MET,
+            reason="x" * 501,
+        )
+
+
+@pytest.mark.parametrize("status", ["MET", "NOT_MET", "UNCERTAIN"])
+def test_condition_status_enum_contains_backend_values(status: str):
+    assert ConditionStatus(status).value == status

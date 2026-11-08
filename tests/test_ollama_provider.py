@@ -20,8 +20,10 @@ def test_ollama_sends_local_image_with_a_constrained_response_schema(tmp_path: P
             json={
                 "message": {
                     "content": (
-                        '{"results":[{"challenge_condition_id":1,"status":"UNCERTAIN"},'
-                        '{"challenge_condition_id":2,"status":"MET"}]}'
+                        '{"results":[{"challenge_condition_id":1,'
+                        '"status":"UNCERTAIN","reason":"The evidence is unclear."},'
+                        '{"challenge_condition_id":2,"status":"MET",'
+                        '"reason":"The bottle is visible."}]}'
                     )
                 },
                 "prompt_eval_count": 30,

@@ -30,7 +30,7 @@ moamu-evaluate --manifest data/evaluation/manifest.jsonl --provider gemini --lim
 
 2026-11-02 프롬프트 비교 결과는 [6개 도전 파일럿 보고서](six-category-v2-pilot-20261102.md)에 기록했습니다. 같은 개발용 사진 30장으로 `photo-verification-v2`와 `photo-verification-v4`를 비교했습니다. 모델의 원본 응답 파일은 `data/evaluation/results/` 아래에서 Git에 포함하지 않고 관리합니다.
 
-프롬프트 원문은 `src/moamu_ai/prompts.py`의 버전 레지스트리에 각각 보존합니다. 서비스는 `.env`의 `AI_PROMPT_VERSION`을 사용하며, 기본값은 `photo-verification-v4`입니다. 벤치마크 실행 시 `--prompt-version`으로 버전을 별도 선택할 수 있고, 결과 JSON에 선택한 버전과 해시가 기록됩니다.
+프롬프트 원문은 `src/moamu_ai/prompt_versions/` 아래 버전별 파일에 보존합니다. 서비스는 `.env`의 `AI_PROMPT_VERSION`을 사용하며, 기본값은 `photo-verification-v4`입니다. 벤치마크 실행 시 `--prompt-version`으로 버전을 별도 선택할 수 있고, 결과 JSON에 선택한 버전과 해시가 기록됩니다.
 
 사진 사례마다 조건 2~5개를 한 번의 모델 요청으로 평가합니다. 실행 결과는 Git에서 제외되는 `data/evaluation/results/`에 저장합니다. 이미지 파일은 저장소 밖의 `AI_IMAGE_ROOT` 경로에 두며, 매니페스트에는 출처 ID·라벨·라이선스를 기록합니다.
 

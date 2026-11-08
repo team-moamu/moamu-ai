@@ -11,14 +11,16 @@ class ConditionStatus(str, Enum):
 
 
 class ConditionSnapshot(BaseModel):
+    """Evaluation manifest metadata, separate from the runtime API request."""
+
     model_config = ConfigDict(extra="forbid")
 
     challenge_condition_id: int = Field(gt=0)
     code: str = Field(min_length=1, max_length=100)
     condition_type: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=1000)
-    # The backend's CHAR(1) column is sent as Y/N. Bool is also accepted for
-    # evaluation manifests and existing local callers.
+    # These fields are retained for benchmark cases; the current backend
+    # condition table and runtime request do not provide this metadata.
     required: bool | Literal["Y", "N"] = True
     sort_order: int = Field(ge=0)
 
@@ -30,17 +32,24 @@ class ConditionSnapshot(BaseModel):
 class PhotoVerificationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    image_path: str = Field(min_length=1, max_length=4096)
-    conditions: list[ConditionSnapshot] = Field(min_length=2, max_length=5)
+    ai_task_id: str = Field(min_length=1, max_length=100)
+    verification_id: str = Field(min_length=1, max_length=100)
+    image_key: str = Field(min_length=1, max_length=4096)
+    conditions: list["VerificationCondition"] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_condition_ids(self):
-        identifiers = [item.challenge_condition_id for item in self.conditions]
-        if len(set(identifiers)) != len(identifiers):
-            raise ValueError("challenge_condition_id values must be unique")
-        if sum(1 for item in self.conditions if item.is_required) < 2:
-            raise ValueError("at least two conditions must be required")
+    def validate_condition_codes(self):
+        codes = [item.code for item in self.conditions]
+        if len(set(codes)) != len(codes):
+            raise ValueError("condition codes must be unique")
         return self
+
+
+class VerificationCondition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=100)
+    description: str = Field(min_length=1, max_length=1000)
 
 
 class ConditionResult(BaseModel):
@@ -48,6 +57,7 @@ class ConditionResult(BaseModel):
 
     challenge_condition_id: int
     status: ConditionStatus
+    reason: str = Field(min_length=1, max_length=500)
 
     @field_validator("challenge_condition_id")
     @classmethod
@@ -60,7 +70,41 @@ class ConditionResult(BaseModel):
 class PhotoVerificationResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    results: list[ConditionResult] = Field(min_length=2, max_length=5)
+    ai_task_id: str = Field(min_length=1, max_length=100)
+    verification_id: str = Field(min_length=1, max_length=100)
+    processing_status: Literal["SUCCEEDED"]
+    checks: list["ConditionCheck"] = Field(min_length=1)
+    model_version: str = Field(min_length=1, max_length=50)
+
+
+class ConditionCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=100)
+    status: ConditionStatus
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ModelJudgmentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    results: list[ConditionResult] = Field(min_length=1)
+
+
+class ApiErrorDetail(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=100)
+    message: str = Field(min_length=1, max_length=500)
+
+
+class PhotoVerificationErrorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ai_task_id: Optional[str] = Field(default=None, max_length=100)
+    verification_id: Optional[str] = Field(default=None, max_length=100)
+    processing_status: Literal["ERROR"]
+    error: ApiErrorDetail
 
 
 class ExpectedConditionResult(BaseModel):
