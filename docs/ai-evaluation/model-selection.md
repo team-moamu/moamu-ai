@@ -1,63 +1,32 @@
-# Model selection record
+# 모델 후보와 비교 평가 현황
 
-**Review date:** 2026-10-26
-**Status:** Candidates selected for a low-cost pilot; measured results pending.
+**최종 갱신:** 2026-11-03
 
-## Candidates
+## 현재 상태
 
-| Provider | Candidate | Role | Notes |
+`gemini-3.5-flash-lite`는 기존 v2~v4 프롬프트 실험에서 모델을 고정해 프롬프트 변경 효과를 비교하는 기준으로 사용했다. 모델 간 비교는 별도의 필수 평가였는데 이전에는 수행하지 않았다. 따라서 3.5 Flash-Lite를 가장 좋은 모델로 선정했다는 뜻은 아니다.
+
+2026-11-03에 같은 v4 프롬프트와 `low` 추론 설정으로 두 Gemini 모델을 공부·계단 운동 양성 사진 6장에 먼저 적용했다. 3.5 Flash-Lite는 12개 조건을 모두 맞췄고, 3.8 Flash는 2개 조건을 `NOT_MET`으로 잘못 판정했다. 이 세트에는 부정 사진이 없어 오승인 성능은 확인할 수 없다. 표본이 작으므로 최종 선정 결과가 아니라 스크리닝으로 기록한다.
+
+| 모델 | 실제 평가 | 결과 | 상태 |
 |---|---|---|---|
-| Gemini API | `gemini-3.5-flash-lite` | First cloud baseline | Current cost-conscious candidate; exact model ID is configurable and recorded per run. |
-| Gemini API | `gemini-3.8-flash` | Follow-up comparison | Run only if the low-cost baseline misses the quality target. |
-| Ollama | `qwen3-vl:2b` | First CPU VLM baseline | Image and text input; library lists a 1.9 GB model. Requires Ollama 0.12.7 or later. |
-| Ollama | `gemma3:4b` | Optional CPU VLM comparison | Image and text input; library lists a 3.4 GB model. |
+| Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`) | 30장 프롬프트 평가와 6장 모델 스크리닝 | v2 95.0%, v4 96.7%; 별도 양성 스크리닝 12/12 일치 | 비교 기준 모델. 최종 우승 모델로 선정하지 않음 |
+| Gemini 3.8 Flash (`gemini-3.8-flash`) | v4 프롬프트, 양성 6장 스크리닝 | 10/12 일치, 오거절 2/12, p50 4.18초 | 추가 평가 전 채택 보류 |
+| Ollama Qwen3-VL 2B (`qwen3-vl:2b`) | 실제 모델 추론 미실행 | 어댑터의 모의 HTTP 단위 테스트만 통과 | CPU VLM 후보. 현재 작업 환경에 Ollama 실행 파일과 서버가 없음 |
+| Ollama Gemma 3 4B (`gemma3:4b`) | 미실행 | 측정 결과 없음 | 선택 비교 후보 |
 
-The API receives an image, so the local candidate must be a vision-language model.
-Text-only Ollama models cannot make the required visual judgment. Qwen3-VL 2B is
-the first local candidate because it has the smaller listed model footprint; the
-actual RAM use and CPU latency still need measurement on the team's machine.
+## Ollama 제공자를 구현한 이유
 
-Sources: [Gemini models](https://ai.google.dev/gemini-api/docs/models),
-[Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
-[Ollama Qwen3-VL](https://ollama.com/library/qwen3-vl),
-[Ollama Gemma 3](https://ollama.com/library/gemma3),
-[Ollama CPU/GPU reporting](https://github.com/ollama/ollama/blob/main/docs/faq.mdx).
+CPU 기반 Ollama 모델도 지원할 수 있으면 좋겠다는 요청에 따라 Gemini와 같은 `PhotoJudge` 인터페이스로 연결할 수 있게 어댑터를 추가했다. 이는 다른 머신에서 CPU VLM을 시험할 수 있도록 준비한 구현이며, 실제 모델을 내려받아 추론하거나 Gemini와 성능을 비교했다는 뜻은 아니다. 현재 머신에서는 Ollama CLI가 없고 기본 서버 `127.0.0.1:11434`에도 연결되지 않았다.
 
-## Comparison method
+## 비교 방법
 
-1. Pin the full model ID or Ollama tag/digest, prompt version, dataset revision,
-   split, SDK/runtime version, and date for every run.
-2. Use the same cases, condition snapshots, and equivalent output schema for each
-   provider. Run prompt changes against one fixed model before changing models.
-3. Start with the six-case pilot limit. Each case sends one image and its two or
-   three conditions in one request. Review recorded usage and actual Google AI
-   Studio billing before expanding the dataset.
-4. Prefer the model with the lower false-accept rate while keeping useful coverage
-   and latency. Do not choose from aggregate accuracy alone.
-5. Review representative false accepts, false rejects, and `UNCERTAIN` cases by
-   condition type, visibility, occlusion, and image quality.
+1. 모델·프롬프트·데이터셋 조합 한 번을 모델 테스트 표의 한 행으로 기록한다. 이 행은 모델 카탈로그, 프롬프트 버전, 평가 데이터셋과 각각 관계형으로 연결한다.
+2. 같은 이미지, 조건, 정답 라벨, 프롬프트, 출력 스키마를 사용한다. Gemini 비교에서는 추론 수준과 출력 토큰 상한도 맞춘다.
+3. 처음에는 6장씩 실행하되, 공부·계단 운동만으로 끝내지 않고 6개 도전 유형의 긍정·부정·모호 사례를 고르게 포함한다.
+4. 오승인율을 우선 보고 오거절, `UNCERTAIN`, 커버리지, p50/p95 지연, 추론 토큰을 함께 비교한다. 부정 라벨이 없으면 오승인율을 0%로 기록하지 않고 측정 불가로 둔다.
+5. Ollama는 CPU/RAM 사용량과 모델 첫 로딩 시간을 별도로 기록한다. 사용자가 실제로 구동할 환경에서 확인하기 전에는 운영 후보로 판단하지 않는다.
 
-## Measures
+Gemini 3.8 Flash는 기본 추론 수준이 `medium`이며 3.5 Flash-Lite의 기본 추론 수준은 `minimal`이다. 출력 토큰 한도에는 추론 토큰도 포함되어, 한도가 낮으면 JSON이 잘릴 수 있다. 재현 가능한 모델 비교를 위해 이번 스크리닝은 두 모델 모두 `GEMINI_THINKING_LEVEL=low`와 512 출력 토큰 한도를 사용했다. 공식 [Gemini 추론 설정 안내](https://ai.google.dev/gemini-api/docs/thinking)를 참고한다.
 
-| Area | Measure |
-|---|---|
-| Classification | 3-way confusion matrix, per-condition accuracy, macro-F1 |
-| Safety | False accepts (`NOT_MET` ground truth predicted as `MET`) |
-| Rejection | False rejects (`MET` ground truth predicted as `NOT_MET`) |
-| Abstention | `UNCERTAIN` count, coverage, selective accuracy |
-| Runtime | End-to-end p50/p95 latency; Ollama CPU/RAM and tokens per second |
-| Cost | Input/output token counts, estimated USD using the dated price snapshot, actual billed usage |
-| Qualitative | Short error category and anonymized case ID; never store image bytes or API keys |
-
-At the time of this record, Google's standard paid price page lists Gemini 3.5
-Flash-Lite at $0.30 per million input tokens (including image tokens) and $2.50
-per million output tokens. Prices and free-tier access can change; the run log
-must include the pricing check date. The code records token usage and limits each
-Gemini benchmark invocation to six calls. It does not claim a cumulative KRW cap,
-so review the provider's billing page before repeated runs.
-
-## Results
-
-| Model | Prompt | Dataset | Cases | False accept | Macro-F1 | Coverage | p50/p95 | Cost | Decision |
-|---|---|---|---:|---:|---:|---:|---:|---:|---|
-| Pending | `photo-verification-v1` | Open Images / MOAMU labeled pilot | 0 | — | — | — | — | — | No live calls run |
+현재 Standard 가격표 기준 입력/출력 단가는 3.5 Flash-Lite가 100만 토큰당 `$0.30`/`$2.50`, 3.8 Flash가 2026-12-31까지 `$0.75`/`$3.75`다. 추론 토큰은 출력 비용에 포함된다. 가격은 변경될 수 있으며 실행 결과의 비용은 토큰 사용량으로 계산한 예상치다. 상세한 6장 결과는 [Notion 표 초안](notion-experiment-report.md)에 기록했다. 출처: [Gemini 공식 모델 목록](https://ai.google.dev/gemini-api/docs/models), [Gemini 공식 가격표](https://ai.google.dev/gemini-api/docs/pricing).

@@ -12,6 +12,7 @@ class InferenceUsage:
     prompt_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    thinking_tokens: Optional[int] = None
 
 
 @dataclass(frozen=True)

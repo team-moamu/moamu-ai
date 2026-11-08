@@ -14,15 +14,23 @@ from pydantic import ValidationError
 from moamu_ai.config import Settings
 from moamu_ai.image_sources import LocalImageStore
 from moamu_ai.metrics import summarize_cases
-from moamu_ai.prompts import PROMPT_VERSION, VERIFICATION_INSTRUCTION, build_verification_prompt
+from moamu_ai.prompts import (
+    DEFAULT_PROMPT_VERSION,
+    SUPPORTED_PROMPT_VERSIONS,
+    build_verification_prompt,
+    get_prompt_definition,
+)
 from moamu_ai.providers.base import PhotoJudge
 from moamu_ai.providers.factory import create_photo_judge
 from moamu_ai.schemas import BenchmarkCase
 from moamu_ai.service import PhotoVerificationService
 
-GEMINI_PRICE_SNAPSHOT_DATE = "2026-10-26"
+GEMINI_PRICE_SNAPSHOT_DATE = "2026-11-03"
 GEMINI_PRICE_SOURCE = "https://ai.google.dev/gemini-api/docs/pricing"
-GEMINI_STANDARD_USD_PER_MILLION_TOKENS = {"gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50}}
+GEMINI_STANDARD_USD_PER_MILLION_TOKENS = {
+    "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
+    "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
+}
 
 
 def load_manifest(path: Path) -> list[BenchmarkCase]:
@@ -180,8 +188,10 @@ def run_benchmark(
     provider: str,
     limit: int = 6,
     max_gemini_calls: int = 6,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
 ) -> dict:
     validate_run_limit(limit, provider, max_gemini_calls=max_gemini_calls)
+    prompt_definition = get_prompt_definition(prompt_version)
     selected = list(cases)[:limit]
     if provider == "gemini" and len(selected) > max_gemini_calls:
         raise ValueError("Gemini benchmark maximum is 6 calls per run")
@@ -196,6 +206,7 @@ def run_benchmark(
     prompt_token_counts = []
     output_token_counts = []
     total_token_counts = []
+    thinking_token_counts = []
     models = set()
     for case in selected:
         condition_results, usage = service.evaluate_local_with_usage(
@@ -203,12 +214,16 @@ def run_benchmark(
             case.conditions,
         )
         prompt_hash = hashlib.sha256(
-            build_verification_prompt(case.conditions).encode("utf-8")
+            build_verification_prompt(case.conditions, version=prompt_version).encode("utf-8")
         ).hexdigest()
         estimated_cost = estimate_cost_usd(
             usage.model,
             usage.prompt_tokens,
-            usage.output_tokens,
+            (
+                usage.output_tokens + (usage.thinking_tokens or 0)
+                if usage.output_tokens is not None
+                else None
+            ),
         )
         if estimated_cost is not None:
             estimated_costs.append(estimated_cost)
@@ -222,6 +237,8 @@ def run_benchmark(
             output_token_counts.append(usage.output_tokens)
         if usage.total_tokens is not None:
             total_token_counts.append(usage.total_tokens)
+        if usage.thinking_tokens is not None:
+            thinking_token_counts.append(usage.thinking_tokens)
         results_by_id = {
             result.challenge_condition_id: result for result in condition_results
         }
@@ -267,9 +284,17 @@ def run_benchmark(
         "started_at": started_at,
         "provider": provider,
         "models": sorted(models),
-        "prompt_version": PROMPT_VERSION,
+        "generation_settings": (
+            {
+                "thinking_level": getattr(judge, "thinking_level", None),
+                "max_output_tokens": getattr(judge, "max_output_tokens", None),
+            }
+            if provider == "gemini"
+            else None
+        ),
+        "prompt_version": prompt_definition.version,
         "prompt_template_sha256": hashlib.sha256(
-            VERIFICATION_INSTRUCTION.encode("utf-8")
+            prompt_definition.instruction.encode("utf-8")
         ).hexdigest(),
         "pricing_snapshot_date": GEMINI_PRICE_SNAPSHOT_DATE,
         "pricing_source": GEMINI_PRICE_SOURCE,
@@ -283,6 +308,7 @@ def run_benchmark(
             "prompt": sum(prompt_token_counts) if prompt_token_counts else None,
             "output": sum(output_token_counts) if output_token_counts else None,
             "total": sum(total_token_counts) if total_token_counts else None,
+            "thinking": sum(thinking_token_counts) if thinking_token_counts else None,
         },
         "latency_ms": {
             "p50": _percentile(latencies, 0.50),
@@ -308,6 +334,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Run a bounded photo-verification benchmark")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--provider", choices=["gemini", "ollama"])
+    parser.add_argument(
+        "--prompt-version",
+        choices=SUPPORTED_PROMPT_VERSIONS,
+        help="Select a stored prompt version; defaults to AI_PROMPT_VERSION from .env",
+    )
     parser.add_argument("--limit", type=int, default=6)
     parser.add_argument(
         "--execute",
@@ -320,6 +351,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     cases = load_manifest(args.manifest)
     settings = Settings()
     provider = args.provider or settings.ai_provider
+    prompt_version = args.prompt_version or settings.ai_prompt_version
     validate_run_limit(
         args.limit,
         provider,
@@ -328,11 +360,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.execute:
         print(
             f"Dry run: manifest has {len(cases)} case(s); "
-            f"up to {min(args.limit, len(cases))} would run. No model calls were made."
+            f"up to {min(args.limit, len(cases))} would run with {prompt_version}. "
+            "No model calls were made."
         )
         return 0
 
-    selected_settings = settings.model_copy(update={"ai_provider": provider})
+    selected_settings = settings.model_copy(
+        update={"ai_provider": provider, "ai_prompt_version": prompt_version}
+    )
     judge = create_photo_judge(selected_settings)
     result = run_benchmark(
         cases=cases,
@@ -341,6 +376,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         provider=provider,
         limit=args.limit,
         max_gemini_calls=settings.gemini_max_live_calls_per_run,
+        prompt_version=prompt_version,
     )
     output_path = args.output or Path("data/evaluation/results") / f"{result['run_id']}.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
