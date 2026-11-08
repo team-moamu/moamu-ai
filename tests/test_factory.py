@@ -6,12 +6,16 @@ from moamu_ai.providers import factory
 
 
 class CapturingJudge:
+    """판정기 생성 옵션을 확인하기 위한 테스트 대역."""
+
     def __init__(self, **kwargs):
+        """생성 시 전달된 옵션을 보관한다."""
         self.kwargs = kwargs
 
 
 @pytest.mark.parametrize("provider", ["gemini", "ollama"])
 def test_provider_factory_passes_the_configured_prompt_version(monkeypatch, provider):
+    """공급자 생성기가 설정된 프롬프트 버전을 전달하는지 확인한다."""
     monkeypatch.setattr(factory, "GeminiPhotoJudge", CapturingJudge)
     monkeypatch.setattr(factory, "OllamaPhotoJudge", CapturingJudge)
     settings = Settings(

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 로컬 가상환경을 활성화하고 개발용 FastAPI 서버를 실행한다.
 set -euo pipefail
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

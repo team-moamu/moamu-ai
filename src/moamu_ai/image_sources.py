@@ -17,16 +17,29 @@ from moamu_ai.image_paths import resolve_image_path
 
 
 class ImageStore(Protocol):
+    """이미지 저장소 구현체가 따라야 하는 인터페이스."""
+
     def open_image(self, image_key: str) -> AbstractContextManager[Path]:
-        """Yield a local file path for the duration of an inference call."""
+        """추론 중 사용할 로컬 이미지 경로를 제공한다.
+
+        Args:
+            image_key: 이미지 저장소에서 사용하는 키 또는 경로.
+
+        Returns:
+            사용 후 정리되는 로컬 파일 경로 컨텍스트 관리자.
+        """
 
 
 class LocalImageStore:
+    """허용된 로컬 디렉터리에서 이미지를 제공하는 저장소."""
+
     def __init__(self, image_root: Path):
+        """지정한 로컬 디렉터리를 이미지 저장소로 설정한다."""
         self.image_root = image_root
 
     @contextmanager
     def open_image(self, image_key: str) -> Iterator[Path]:
+        """로컬 이미지 경로를 검증한 뒤 컨텍스트 안에서 제공한다."""
         try:
             image_path = resolve_image_path(image_key, self.image_root)
         except (ImageNotFoundError, ImagePathNotAllowedError, ImageUnreadableError) as exc:
@@ -37,7 +50,10 @@ class LocalImageStore:
 
 
 class S3ImageStore:
+    """S3 객체를 임시 파일로 제공하는 이미지 저장소."""
+
     def __init__(self, bucket: str, client=None):
+        """S3 버킷과 클라이언트로 이미지 저장소를 구성한다."""
         if not bucket:
             raise ImageStoreConfigurationError("S3_BUCKET is not configured")
         self.bucket = bucket
@@ -45,6 +61,7 @@ class S3ImageStore:
 
     @contextmanager
     def open_image(self, image_key: str) -> Iterator[Path]:
+        """S3 객체를 임시 파일로 내려받아 사용 후 정리한다."""
         if self.client is None:
             raise ImageStoreConfigurationError("S3 client is not configured")
 
@@ -82,6 +99,17 @@ class S3ImageStore:
 
 
 def create_image_store(settings) -> ImageStore:
+    """설정에 지정된 로컬 또는 S3 이미지 저장소를 생성한다.
+
+    Args:
+        settings: 이미지 소스와 자격 증명이 담긴 앱 설정.
+
+    Returns:
+        선택된 이미지 저장소 구현체.
+
+    Raises:
+        ImageStoreConfigurationError: 저장소 종류나 필수 설정이 올바르지 않은 경우.
+    """
     if settings.ai_image_source == "local":
         return LocalImageStore(settings.ai_image_root)
     if settings.ai_image_source != "s3":

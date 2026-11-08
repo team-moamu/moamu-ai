@@ -17,6 +17,8 @@ from moamu_ai.schemas import ConditionSnapshot, ModelJudgmentResponse
 
 
 class OllamaPhotoJudge:
+    """로컬 Ollama 서버로 이미지별 인증 조건을 판정한다."""
+
     def __init__(
         self,
         base_url: str,
@@ -25,6 +27,7 @@ class OllamaPhotoJudge:
         client: Optional[httpx.Client] = None,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
     ):
+        """Ollama 서버 주소, 모델, 요청 옵션을 설정한다."""
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_seconds = timeout_seconds
@@ -32,6 +35,19 @@ class OllamaPhotoJudge:
         self.client = client or httpx.Client(timeout=timeout_seconds)
 
     def evaluate(self, image_path: Path, conditions: list[ConditionSnapshot]) -> InferenceResult:
+        """Ollama에 이미지와 조건을 보내 판정 결과를 반환한다.
+
+        Args:
+            image_path: 모델에 전달할 이미지 파일 경로.
+            conditions: 판정할 인증 조건 목록.
+
+        Returns:
+            조건별 판정 결과와 추론 사용량 정보.
+
+        Raises:
+            ModelProviderError: 이미지 읽기 또는 Ollama 요청에 실패한 경우.
+            InvalidModelOutputError: Ollama 응답이 없거나 형식이 잘못된 경우.
+        """
         try:
             image_bytes = image_path.read_bytes()
         except OSError as exc:

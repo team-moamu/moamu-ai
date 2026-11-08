@@ -12,16 +12,21 @@ from moamu_ai.schemas import (
 
 
 class FakeGeminiModels:
+    """Gemini 요청 인자와 가짜 응답을 기록하는 테스트 대역."""
+
     def __init__(self, response):
+        """가짜 Gemini 응답과 요청 기록 공간을 초기화한다."""
         self.response = response
         self.kwargs = None
 
     def generate_content(self, **kwargs):
+        """호출 인자를 저장하고 설정된 응답을 반환한다."""
         self.kwargs = kwargs
         return self.response
 
 
 def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
+    """이미지와 구조화 응답 설정이 Gemini에 전달되는지 확인한다."""
     image_path = tmp_path / "photo.jpg"
     image_path.write_bytes(b"fake image bytes")
     response = SimpleNamespace(
@@ -81,6 +86,7 @@ def test_gemini_sends_image_and_structured_output_config(tmp_path: Path):
 
 
 def test_gemini_provider_requires_the_exact_configured_api_key_name():
+    """Gemini 공급자가 요구하는 API 키 설정명을 확인한다."""
     from moamu_ai.errors import ProviderConfigurationError
 
     try:
@@ -92,6 +98,7 @@ def test_gemini_provider_requires_the_exact_configured_api_key_name():
 
 
 def test_gemini_structured_response_schema_is_supported_by_the_sdk():
+    """응답 스키마가 Gemini SDK에서 허용되는 형식인지 확인한다."""
     schema = _gemini_response_schema()
     gemini_schema = t_schema(None, schema)
 

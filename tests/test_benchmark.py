@@ -18,10 +18,14 @@ from moamu_ai.schemas import BenchmarkCase, ConditionResult, ConditionStatus
 
 
 class FakeJudge:
+    """벤치마크 테스트에서 사용량과 고정 결과를 제공하는 대역."""
+
     def __init__(self):
+        """가짜 판정기의 사용량 정보를 초기화한다."""
         self.calls = 0
 
     def evaluate(self, image_path, conditions):
+        """평가 조건별 가짜 판정과 사용량을 반환한다."""
         self.calls += 1
         return InferenceResult(
             results=[
@@ -47,6 +51,7 @@ class FakeJudge:
 
 
 def sample_case(image_path: str):
+    """테스트용 벤치마크 사례를 구성한다."""
     return {
         "case_id": "open-images-sample-1",
         "goal_template_code": "WATER_INTAKE",
@@ -91,6 +96,7 @@ def sample_case(image_path: str):
 
 
 def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Path):
+    """평가 실행 결과와 조건별 지표가 기록되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "sample.jpg").write_bytes(b"test image")
@@ -128,6 +134,7 @@ def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Pat
 
 
 def test_benchmark_records_gemini_generation_settings(tmp_path: Path):
+    """Gemini 생성 설정이 평가 결과에 저장되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "sample.jpg").write_bytes(b"test image")
@@ -151,6 +158,7 @@ def test_benchmark_records_gemini_generation_settings(tmp_path: Path):
 
 
 def test_benchmark_records_hashes_for_the_selected_prompt_version(tmp_path: Path):
+    """선택한 프롬프트 버전의 지문이 기록되는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "sample.jpg").write_bytes(b"test image")
@@ -177,6 +185,7 @@ def test_benchmark_records_hashes_for_the_selected_prompt_version(tmp_path: Path
 
 
 def test_benchmark_records_unlabeled_predictions_but_excludes_them_from_metrics(tmp_path: Path):
+    """정답 없는 예측은 저장하되 지표 계산에서 제외하는지 확인한다."""
     image_root = tmp_path / "images"
     image_root.mkdir()
     (image_root / "sample.jpg").write_bytes(b"test image")
@@ -197,6 +206,7 @@ def test_benchmark_records_unlabeled_predictions_but_excludes_them_from_metrics(
 
 
 def test_prompt_run_comparison_reports_condition_level_flip_rate():
+    """프롬프트 비교가 조건별 판정 변경률을 계산하는지 확인한다."""
     previous = {
         "run_id": "run-1",
         "prompt_version": "photo-verification-v1",
@@ -256,6 +266,7 @@ def test_prompt_run_comparison_reports_condition_level_flip_rate():
 
 
 def test_prompt_run_comparison_rejects_different_case_sets():
+    """서로 다른 평가 사례 집합의 비교를 거부하는지 확인한다."""
     with pytest.raises(ValueError, match="same case and condition IDs"):
         compare_prompt_runs(
             {"cases": [{"case_id": "left", "condition_results": []}]},
@@ -264,6 +275,7 @@ def test_prompt_run_comparison_rejects_different_case_sets():
 
 
 def test_manifest_rejects_expected_condition_ids_not_in_snapshot(tmp_path: Path):
+    """사례 조건에 없는 정답 조건 ID를 거부하는지 확인한다."""
     case = sample_case("sample.jpg")
     case["expected_results"][0]["challenge_condition_id"] = 999
     manifest = tmp_path / "manifest.jsonl"
@@ -274,6 +286,7 @@ def test_manifest_rejects_expected_condition_ids_not_in_snapshot(tmp_path: Path)
 
 
 def test_gemini_benchmark_limit_is_capped_at_six_calls_per_run():
+    """Gemini 평가 호출 수가 실행당 여섯 건으로 제한되는지 확인한다."""
     validate_run_limit(6, provider="gemini", max_gemini_calls=6)
 
     with pytest.raises(ValueError, match="maximum is 6"):
@@ -281,6 +294,7 @@ def test_gemini_benchmark_limit_is_capped_at_six_calls_per_run():
 
 
 def test_cost_estimate_uses_recorded_tokens_and_unknown_models_remain_unpriced():
+    """토큰 비용 추정과 미등록 모델의 미산정 처리를 확인한다."""
     assert estimate_cost_usd("gemini-3.5-flash-lite", 1000, 1000) == 0.0028
     assert estimate_cost_usd("gemini-3.8-flash", 1000, 1000) == 0.0045
     assert estimate_cost_usd("qwen3-vl:2b", 1000, 1000) is None
@@ -289,10 +303,12 @@ def test_cost_estimate_uses_recorded_tokens_and_unknown_models_remain_unpriced()
 def test_benchmark_cli_dry_run_accepts_a_prompt_version_override(
     tmp_path: Path, monkeypatch, capsys
 ):
+    """CLI 드라이런에서 프롬프트 버전을 지정할 수 있는지 확인한다."""
     manifest = tmp_path / "manifest.jsonl"
     manifest.write_text(json.dumps(sample_case("missing.jpg")) + "\n")
 
     def unexpected_live_client(*args, **kwargs):
+        """드라이런 중 실제 모델 클라이언트 생성 여부를 감시한다."""
         raise AssertionError("dry-run must not create a provider client")
 
     monkeypatch.setattr("moamu_ai.benchmark.create_photo_judge", unexpected_live_client)

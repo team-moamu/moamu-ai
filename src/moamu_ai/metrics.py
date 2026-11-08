@@ -9,11 +9,21 @@ StatusPair = tuple[str, str]
 
 
 def _status_value(value) -> str:
+    """상태 열거형이나 문자열을 비교 가능한 상태 문자열로 바꾼다.
+
+    Args:
+        value: 상태 열거형 또는 상태 문자열.
+
+    Returns:
+        상태 값 문자열.
+    """
     return value.value if isinstance(value, ConditionStatus) else str(value)
 
 
 @dataclass(frozen=True)
 class ConditionMetrics:
+    """하나의 조건 집합에 대한 분류 성능 지표를 보관한다."""
+
     total_cases: int
     correct: int
     false_accepts: int
@@ -30,10 +40,20 @@ class ConditionMetrics:
 
 @dataclass(frozen=True)
 class MetricsSummary(ConditionMetrics):
+    """전체 지표와 인증 조건별 지표를 함께 보관한다."""
+
     by_condition: dict[str, ConditionMetrics]
 
 
 def _summarize(pairs: Iterable[StatusPair]) -> ConditionMetrics:
+    """정답과 예측 쌍에서 혼동 행렬 및 분류 지표를 계산한다.
+
+    Args:
+        pairs: 정답 상태와 예측 상태의 쌍.
+
+    Returns:
+        정확도, 오판율, macro F1 등 집계 지표.
+    """
     confusion: defaultdict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(int))
     correct = false_accepts = false_rejects = uncertain_predictions = 0
     expected_not_met = expected_met = 0
@@ -95,7 +115,14 @@ def _summarize(pairs: Iterable[StatusPair]) -> ConditionMetrics:
 
 
 def summarize_cases(cases: Iterable[tuple[str, str, str]]) -> MetricsSummary:
-    """Summarize (condition code, expected status, predicted status) records."""
+    """인증 조건별 평가 기록을 모아 전체 및 조건별 지표를 계산한다.
+
+    Args:
+        cases: 조건 코드, 정답 상태, 예측 상태로 구성된 기록들.
+
+    Returns:
+        전체 성능 지표와 조건 코드별 성능 지표.
+    """
     grouped: defaultdict[str, list[StatusPair]] = defaultdict(list)
     all_pairs = []
     for condition_code, expected, predicted in cases:
