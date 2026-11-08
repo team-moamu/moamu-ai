@@ -57,7 +57,7 @@ class ConditionResult(BaseModel):
 
     challenge_condition_id: int
     status: ConditionStatus
-    reason: str = Field(max_length=500)
+    reason: str = Field(min_length=1, max_length=500)
 
     @field_validator("challenge_condition_id")
     @classmethod
@@ -82,7 +82,7 @@ class ConditionCheck(BaseModel):
 
     code: str = Field(min_length=1, max_length=100)
     status: ConditionStatus
-    reason: str = Field(max_length=500)
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class ModelJudgmentResponse(BaseModel):
