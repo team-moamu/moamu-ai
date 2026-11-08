@@ -28,17 +28,21 @@ provider output.
 
 **Status:** Current API prompt; not yet benchmarked.
 **Single change:** Send only `challenge_condition_id` and the natural-language
-`description` to the model. `code`, `condition_type`, `required`, and
-`sort_order` remain part of the backend request contract but are not needed to
-judge the photo. The API still returns one status per supplied condition ID.
+`description` in this historical prompt experiment. The current backend request
+contains only each condition's `code` and `description`; `condition_type`,
+`required`, and `sort_order` are not part of the V6-era request contract. The AI
+service assigns its own per-request condition ID for model output; it is not the
+database `challenge_condition_id`. The API returns one status per supplied
+condition code.
 
 The exact instruction text is unchanged from v1. The serialized conditions are
 now limited to the ID and description, so this version requires a fresh benchmark
 before its results can be compared with v1.
 
-The 2026-10-27 positive smoke manifests predate the backend taxonomy and retain
-the synthetic `OBJECT_VISIBLE` / `ACTION_VISIBLE` labels used in those runs. They
-are not the backend's condition types; v2 does not send those fields to the model.
+The evaluation manifests retain `condition_type`, `required`, and `sort_order` as
+historical benchmark metadata. The 2026-10-27 positive smoke manifests also retain
+the synthetic `OBJECT_VISIBLE` / `ACTION_VISIBLE` labels used in those runs. These
+fields are not the current backend DB/API contract and are not sent to the model.
 
 ## Experiment table
 
