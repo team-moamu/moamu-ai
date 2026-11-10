@@ -29,9 +29,15 @@ GEMINI_TOKEN_API_KEY=발급받은_Gemini_API_키
 GEMINI_MODEL=gemini-3.5-flash-lite
 AWS_REGION=ap-northeast-2
 S3_BUCKET=moamu-s3-bucket
-S3_ACCESS_KEY_ID=발급받은_S3_액세스_키
-S3_SECRET_ACCESS_KEY=발급받은_S3_시크릿_키
+AWS_ACCESS_KEY_ID=발급받은_AWS_액세스_키
+AWS_SECRET_ACCESS_KEY=발급받은_AWS_시크릿_키
+# 임시 자격 증명을 사용할 때만 설정
+AWS_SESSION_TOKEN=발급받은_AWS_세션_토큰
 ```
+
+기존 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN` 이름도 계속 지원합니다.
+두 이름 체계를 동시에 설정하지 말고, IAM 역할을 사용하는 환경에서는 액세스 키 설정을
+생략할 수 있습니다.
 
 서버 실행:
 

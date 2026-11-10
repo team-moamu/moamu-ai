@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from moamu_ai.prompts import DEFAULT_PROMPT_VERSION, get_prompt_definition
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        populate_by_name=True,
     )
 
     ai_provider: Literal["gemini", "ollama"] = "gemini"
@@ -27,8 +28,18 @@ class Settings(BaseSettings):
     gemini_thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3-vl:2b"
-    s3_access_key_id: Optional[SecretStr] = None
-    s3_secret_access_key: Optional[SecretStr] = None
+    s3_access_key_id: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID"),
+    )
+    s3_secret_access_key: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY"),
+    )
+    s3_session_token: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("S3_SESSION_TOKEN", "AWS_SESSION_TOKEN"),
+    )
     aws_region: str = "ap-northeast-2"
     s3_bucket: Optional[str] = None
     ai_provider_timeout_seconds: float = Field(default=45.0, gt=0, le=300)

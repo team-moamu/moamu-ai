@@ -136,11 +136,17 @@ curl -X POST 'http://127.0.0.1:8000/internal/photo-verifications' \
 
 ```dotenv
 AI_IMAGE_SOURCE=s3
-S3_ACCESS_KEY_ID=...
-S3_SECRET_ACCESS_KEY=...
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+# 임시 자격 증명을 사용하는 경우에만 설정
+AWS_SESSION_TOKEN=...
 AWS_REGION=ap-northeast-2
 S3_BUCKET=moamu-s3-bucket
 ```
+
+기존 `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SESSION_TOKEN` 이름도 호환됩니다.
+AWS 표준 이름과 기존 S3 이름 중 한 종류만 설정하세요. IAM 역할을 사용하는 환경에서는
+액세스 키 설정을 생략할 수 있습니다.
 
 로컬 계약 테스트는 `AI_IMAGE_SOURCE=local`, `AI_IMAGE_ROOT=./data/images`를 설정하고
 `image_key`에 해당 디렉터리 아래 상대 경로를 넣는다. 로컬 모드는 개발 테스트용이며

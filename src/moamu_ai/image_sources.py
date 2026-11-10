@@ -119,9 +119,14 @@ def create_image_store(settings) -> ImageStore:
 
     access_key = settings.s3_access_key_id
     secret_key = settings.s3_secret_access_key
+    session_token = settings.s3_session_token
     if bool(access_key) != bool(secret_key):
         raise ImageStoreConfigurationError(
-            "S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be configured together"
+            "S3/AWS access key ID and secret access key must be configured together"
+        )
+    if session_token and not (access_key and secret_key):
+        raise ImageStoreConfigurationError(
+            "S3/AWS session token requires access key credentials"
         )
 
     try:
@@ -133,6 +138,8 @@ def create_image_store(settings) -> ImageStore:
                 aws_access_key_id=access_key.get_secret_value(),
                 aws_secret_access_key=secret_key.get_secret_value(),
             )
+            if session_token:
+                client_kwargs["aws_session_token"] = session_token.get_secret_value()
         client = boto3.client("s3", **client_kwargs)
     except Exception as exc:
         raise ImageStoreConfigurationError("S3 client could not be configured") from exc
