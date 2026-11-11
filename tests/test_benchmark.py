@@ -1,0 +1,328 @@
+import hashlib
+import json
+from pathlib import Path
+
+import pytest
+
+from moamu_ai.benchmark import (
+    compare_prompt_runs,
+    estimate_cost_usd,
+    load_manifest,
+    main,
+    run_benchmark,
+    validate_run_limit,
+)
+from moamu_ai.prompts import build_verification_prompt, get_prompt_definition
+from moamu_ai.providers.base import InferenceResult, InferenceUsage
+from moamu_ai.schemas import BenchmarkCase, ConditionResult, ConditionStatus
+
+
+class FakeJudge:
+    """벤치마크 테스트에서 사용량과 고정 결과를 제공하는 대역."""
+
+    def __init__(self):
+        """가짜 판정기의 사용량 정보를 초기화한다."""
+        self.calls = 0
+
+    def evaluate(self, image_path, conditions):
+        """평가 조건별 가짜 판정과 사용량을 반환한다."""
+        self.calls += 1
+        return InferenceResult(
+            results=[
+                ConditionResult(
+                    challenge_condition_id=item.challenge_condition_id,
+                    status=(
+                        ConditionStatus.MET
+                        if item.challenge_condition_id == 1
+                        else ConditionStatus.NOT_MET
+                    ),
+                    reason="The mocked result includes a reason.",
+                )
+                for item in conditions
+            ],
+            usage=InferenceUsage(
+                model="qwen3-vl:2b",
+                latency_ms=250,
+                prompt_tokens=100,
+                output_tokens=10,
+                total_tokens=110,
+            ),
+        )
+
+
+def sample_case(image_path: str):
+    """테스트용 벤치마크 사례를 구성한다."""
+    return {
+        "case_id": "open-images-sample-1",
+        "goal_template_code": "WATER_INTAKE",
+        "dataset_name": "Open Images V7",
+        "dataset_version": "v7",
+        "dataset_split": "validation",
+        "dataset_image_id": "sample-image-id",
+        "image_license": "CC BY 2.0 (verify per image)",
+        "split": "dev",
+        "image_path": image_path,
+        "conditions": [
+            {
+                "challenge_condition_id": 1,
+                "code": "BOTTLE_VISIBLE",
+                "condition_type": "OBJECT_PRESENT",
+                "description": "A water bottle is visible",
+                "required": True,
+                "sort_order": 1,
+            },
+            {
+                "challenge_condition_id": 2,
+                "code": "DRINKING_VISIBLE",
+                "condition_type": "ACTIVITY_IN_PROGRESS",
+                "description": "A person is visibly drinking water",
+                "required": True,
+                "sort_order": 2,
+            },
+        ],
+        "expected_results": [
+            {
+                "challenge_condition_id": 1,
+                "status": "MET",
+                "label_basis": "human_verified_positive",
+            },
+            {
+                "challenge_condition_id": 2,
+                "status": "NOT_MET",
+                "label_basis": "human_verified_negative",
+            },
+        ],
+    }
+
+
+def test_manifest_runner_records_outputs_and_per_condition_metrics(tmp_path: Path):
+    """평가 실행 결과와 조건별 지표가 기록되는지 확인한다."""
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(json.dumps(sample_case("sample.jpg")) + "\n")
+    cases = load_manifest(manifest)
+    judge = FakeJudge()
+
+    result = run_benchmark(
+        cases=cases,
+        judge=judge,
+        image_root=image_root,
+        provider="ollama",
+        limit=6,
+    )
+
+    assert judge.calls == 1
+    assert result["case_count"] == 1
+    assert result["cases"][0]["usage"]["total_tokens"] == 110
+    assert result["metrics"]["total_cases"] == 2
+    assert result["metrics"]["false_accepts"] == 0
+    assert result["estimated_cost_usd"] is None
+    assert result["metrics"]["by_condition"]["BOTTLE_VISIBLE"]["accuracy"] == 1.0
+    assert result["image_calls"] == 1
+    assert result["cases"][0]["dataset_split"] == "validation"
+    assert result["token_totals"] == {
+        "prompt": 100,
+        "output": 10,
+        "total": 110,
+        "thinking": None,
+    }
+    assert result["latency_ms"] == {"p50": 250, "p95": 250}
+    assert len(result["cases"][0]["prompt_sha256"]) == 64
+    assert "image_path" not in result["cases"][0]
+
+
+def test_benchmark_records_gemini_generation_settings(tmp_path: Path):
+    """Gemini 생성 설정이 평가 결과에 저장되는지 확인한다."""
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    case = BenchmarkCase.model_validate(sample_case("sample.jpg"))
+    judge = FakeJudge()
+    judge.thinking_level = "low"
+    judge.max_output_tokens = 512
+
+    result = run_benchmark(
+        cases=[case],
+        judge=judge,
+        image_root=image_root,
+        provider="gemini",
+        prompt_version="photo-verification-v4",
+    )
+
+    assert result["generation_settings"] == {
+        "thinking_level": "low",
+        "max_output_tokens": 512,
+    }
+
+
+def test_benchmark_records_hashes_for_the_selected_prompt_version(tmp_path: Path):
+    """선택한 프롬프트 버전의 지문이 기록되는지 확인한다."""
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    case = BenchmarkCase.model_validate(sample_case("sample.jpg"))
+    selected_version = "photo-verification-v2"
+
+    result = run_benchmark(
+        cases=[case],
+        judge=FakeJudge(),
+        image_root=image_root,
+        provider="ollama",
+        prompt_version=selected_version,
+    )
+
+    expected_template_hash = hashlib.sha256(
+        get_prompt_definition(selected_version).instruction.encode("utf-8")
+    ).hexdigest()
+    expected_prompt_hash = hashlib.sha256(
+        build_verification_prompt(case.conditions, version=selected_version).encode("utf-8")
+    ).hexdigest()
+    assert result["prompt_version"] == selected_version
+    assert result["prompt_template_sha256"] == expected_template_hash
+    assert result["cases"][0]["prompt_sha256"] == expected_prompt_hash
+
+
+def test_benchmark_records_unlabeled_predictions_but_excludes_them_from_metrics(tmp_path: Path):
+    """정답 없는 예측은 저장하되 지표 계산에서 제외하는지 확인한다."""
+    image_root = tmp_path / "images"
+    image_root.mkdir()
+    (image_root / "sample.jpg").write_bytes(b"test image")
+    case_data = sample_case("sample.jpg")
+    case_data["expected_results"] = case_data["expected_results"][:1]
+    judge = FakeJudge()
+
+    result = run_benchmark(
+        cases=[BenchmarkCase.model_validate(case_data)],
+        judge=judge,
+        image_root=image_root,
+        provider="ollama",
+    )
+
+    assert len(result["cases"][0]["condition_results"]) == 2
+    assert result["cases"][0]["condition_results"][1]["expected_status"] is None
+    assert result["metrics"]["total_cases"] == 1
+
+
+def test_prompt_run_comparison_reports_condition_level_flip_rate():
+    """프롬프트 비교가 조건별 판정 변경률을 계산하는지 확인한다."""
+    previous = {
+        "run_id": "run-1",
+        "prompt_version": "photo-verification-v1",
+        "prompt_template_sha256": "a" * 64,
+        "cases": [
+            {
+                "case_id": "case-1",
+                "prompt_sha256": "a" * 64,
+                "condition_results": [
+                    {
+                        "challenge_condition_id": 1,
+                        "expected_status": "MET",
+                        "predicted_status": "MET",
+                    },
+                    {
+                        "challenge_condition_id": 2,
+                        "expected_status": "NOT_MET",
+                        "predicted_status": "UNCERTAIN",
+                    },
+                ],
+            }
+        ],
+    }
+    current = {
+        "run_id": "run-2",
+        "prompt_version": "photo-verification-v2",
+        "prompt_template_sha256": "b" * 64,
+        "cases": [
+            {
+                "case_id": "case-1",
+                "prompt_sha256": "b" * 64,
+                "condition_results": [
+                    {
+                        "challenge_condition_id": 1,
+                        "expected_status": "MET",
+                        "predicted_status": "NOT_MET",
+                    },
+                    {
+                        "challenge_condition_id": 2,
+                        "expected_status": "NOT_MET",
+                        "predicted_status": "MET",
+                    },
+                ],
+            }
+        ],
+    }
+
+    comparison = compare_prompt_runs(previous, current)
+
+    assert comparison["compared_predictions"] == 2
+    assert comparison["changed_predictions"] == 2
+    assert comparison["status_flip_rate"] == 1.0
+    assert comparison["previous_prompt_template_sha256"] == "a" * 64
+    assert comparison["false_accept_rate_delta"] == 1.0
+    assert comparison["uncertain_count_delta"] == -1
+    assert comparison["changed"][0]["challenge_condition_id"] == 1
+
+
+def test_prompt_run_comparison_rejects_different_case_sets():
+    """서로 다른 평가 사례 집합의 비교를 거부하는지 확인한다."""
+    with pytest.raises(ValueError, match="same case and condition IDs"):
+        compare_prompt_runs(
+            {"cases": [{"case_id": "left", "condition_results": []}]},
+            {"cases": [{"case_id": "right", "condition_results": []}]},
+        )
+
+
+def test_manifest_rejects_expected_condition_ids_not_in_snapshot(tmp_path: Path):
+    """사례 조건에 없는 정답 조건 ID를 거부하는지 확인한다."""
+    case = sample_case("sample.jpg")
+    case["expected_results"][0]["challenge_condition_id"] = 999
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(json.dumps(case) + "\n")
+
+    with pytest.raises(ValueError, match="expected result IDs"):
+        load_manifest(manifest)
+
+
+def test_gemini_benchmark_limit_is_capped_at_six_calls_per_run():
+    """Gemini 평가 호출 수가 실행당 여섯 건으로 제한되는지 확인한다."""
+    validate_run_limit(6, provider="gemini", max_gemini_calls=6)
+
+    with pytest.raises(ValueError, match="maximum is 6"):
+        validate_run_limit(7, provider="gemini", max_gemini_calls=6)
+
+
+def test_cost_estimate_uses_recorded_tokens_and_unknown_models_remain_unpriced():
+    """토큰 비용 추정과 미등록 모델의 미산정 처리를 확인한다."""
+    assert estimate_cost_usd("gemini-3.5-flash-lite", 1000, 1000) == 0.0028
+    assert estimate_cost_usd("gemini-3.8-flash", 1000, 1000) == 0.0045
+    assert estimate_cost_usd("qwen3-vl:2b", 1000, 1000) is None
+
+
+def test_benchmark_cli_dry_run_accepts_a_prompt_version_override(
+    tmp_path: Path, monkeypatch, capsys
+):
+    """CLI 드라이런에서 프롬프트 버전을 지정할 수 있는지 확인한다."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(json.dumps(sample_case("missing.jpg")) + "\n")
+
+    def unexpected_live_client(*args, **kwargs):
+        """드라이런 중 실제 모델 클라이언트 생성 여부를 감시한다."""
+        raise AssertionError("dry-run must not create a provider client")
+
+    monkeypatch.setattr("moamu_ai.benchmark.create_photo_judge", unexpected_live_client)
+
+    assert main(
+        [
+            "--manifest",
+            str(manifest),
+            "--provider",
+            "gemini",
+            "--prompt-version",
+            "photo-verification-v2",
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert "photo-verification-v2" in output
+    assert "No model calls were made" in output
