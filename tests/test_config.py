@@ -122,6 +122,15 @@ def test_settings_selects_a_prompt_version_from_the_environment(monkeypatch):
     assert settings.ai_prompt_version == "photo-verification-v3"
 
 
+def test_settings_selects_a_goal_prompt_version_from_the_environment(monkeypatch):
+    """환경 변수로 자유목표 분석 프롬프트 버전을 선택하는지 확인한다."""
+    monkeypatch.setenv("AI_GOAL_PROMPT_VERSION", "goal-verifiability-v1")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.ai_goal_prompt_version == "goal-verifiability-v1"
+
+
 def test_settings_selects_gemini_thinking_level_from_the_environment(monkeypatch):
     """환경 변수로 Gemini 추론 단계를 선택하는지 확인한다."""
     monkeypatch.setenv("GEMINI_THINKING_LEVEL", "low")
@@ -139,4 +148,14 @@ def test_settings_rejects_an_unknown_prompt_version(monkeypatch):
     monkeypatch.setenv("AI_PROMPT_VERSION", "photo-verification-v99")
 
     with pytest.raises(ValidationError, match="Unsupported prompt version"):
+        Settings(_env_file=None)
+
+
+def test_settings_rejects_an_unknown_goal_prompt_version(monkeypatch):
+    """등록되지 않은 자유목표 분석 프롬프트 버전을 거부하는지 확인한다."""
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("AI_GOAL_PROMPT_VERSION", "goal-verifiability-v99")
+
+    with pytest.raises(ValidationError, match="Unsupported goal prompt version"):
         Settings(_env_file=None)

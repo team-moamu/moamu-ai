@@ -1,11 +1,12 @@
 # 모아뮤 AI 사진 인증 서비스
 
-백엔드가 전달한 S3 사진과 도전 인증 조건을 Gemini 또는 로컬 Ollama 비전 모델로 판정하는 내부 FastAPI 서비스입니다. API 계약은 [AI 평가 문서의 API 계약](docs/ai-evaluation/api-contract.md)을 참고하세요.
+백엔드가 전달한 목표 문장의 사진 인증 가능성을 분석하고, S3 사진과 도전 인증 조건을 Gemini 또는 로컬 Ollama 모델로 판정하는 내부 FastAPI 서비스입니다. API 계약은 [AI 평가 문서의 API 계약](docs/ai-evaluation/api-contract.md)을 참고하세요.
 
 ## 담당 범위
 
 - 백엔드는 사진 업로드, 이미지 형식·용량 검사, 인증 재시도와 최종 인증 상태 결정을 담당합니다.
 - AI 서비스는 백엔드가 저장한 사진을 읽고 각 조건에 `MET`, `NOT_MET`, `UNCERTAIN` 판정과 사유를 반환합니다.
+- AI 서비스는 자유목표에 대한 사진 인증 조건, 촬영 가이드, 판정 범위, 분류 후보 또는 대안 목표를 제안합니다.
 - AI 서비스는 전체 인증 성공·실패 상태를 계산하지 않습니다.
 
 ## 로컬 실행
@@ -25,6 +26,7 @@ Gemini와 S3를 사용할 경우 `.env`에 필요한 설정을 입력합니다. 
 AI_PROVIDER=gemini
 AI_IMAGE_SOURCE=s3
 AI_PROMPT_VERSION=photo-verification-v4
+AI_GOAL_PROMPT_VERSION=goal-verifiability-v1
 GEMINI_TOKEN_API_KEY=발급받은_Gemini_API_키
 GEMINI_MODEL=gemini-3.5-flash-lite
 AWS_REGION=ap-northeast-2
@@ -92,9 +94,35 @@ JSON
 ./test.sh 'artworks/girl_with_pearl_earring_studying.png'
 ```
 
+## 자유목표 사진 인증 가능 여부 API
+
+`POST /internal/goals/evaluate-verifiability`는 목표 문장과 `categoryPath`를 받습니다.
+기존 분류 경로가 있으면 대·중·소 분류명을 전달하고, 새로운 분류 후보가 필요하면
+`categoryPath`를 `null`로 보냅니다. 인증할 수 없는 목표도 HTTP 200으로 반환되며,
+이 경우 사진으로 확인할 수 있는 대안 목표 세 개를 포함합니다.
+
+```bash
+curl --request POST \
+  --url 'http://127.0.0.1:8000/internal/goals/evaluate-verifiability' \
+  --header 'Content-Type: application/json' \
+  --data '{"goal":"매일 영어 뉴스 10분 듣고 새 표현 적기","categoryPath":null}'
+```
+
+서버는 한 터미널에서 `./run.sh`로 실행하고, 다른 터미널에서 기본 요청을 보냅니다.
+목표와 기존 분류 경로를 직접 바꿔 확인할 수도 있습니다.
+
+```bash
+./test_goal.sh
+./test_goal.sh '매일 영어 표현 적기' '{"major":"학습","middle":"외국어","minor":"작문"}'
+./test_goal.sh '매일 행복한 마음 갖기'
+```
+
+기존 사진 판정 API 테스트와 마찬가지로 `MOAMU_AI_URL` 환경 변수로 요청 URL을
+덮어쓸 수 있습니다. 실제 모델 호출은 실행 중인 서버의 `AI_PROVIDER` 설정을 따릅니다.
+
 ## 모델과 프롬프트 설정
 
-Gemini API는 `AI_PROVIDER=gemini`, `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`을 설정합니다. 프롬프트는 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있으며 기본값은 v4입니다. 모델 비교 시 `GEMINI_THINKING_LEVEL`을 지정해 추론 수준을 고정할 수 있습니다.
+Gemini API는 `AI_PROVIDER=gemini`, `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`을 설정합니다. 사진 판정 프롬프트는 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있고, 목표 분석 프롬프트는 `AI_GOAL_PROMPT_VERSION`으로 선택합니다. 모델 비교 시 `GEMINI_THINKING_LEVEL`을 지정해 추론 수준을 고정할 수 있습니다.
 
 CPU 기반 로컬 Ollama 비전 모델은 `AI_PROVIDER=ollama`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`을 설정합니다. Ollama 서버와 모델은 별도로 준비해야 합니다.
 
@@ -104,7 +132,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3-vl:2b
 ```
 
-각 프롬프트 원문은 [`src/moamu_ai/prompt_versions/`](src/moamu_ai/prompt_versions/) 아래 버전별 파일에 보존합니다. `.env`의 `AI_PROMPT_VERSION`으로 서버 기본 버전을 선택하고, 벤치마크에서는 `--prompt-version`으로 따로 지정할 수 있습니다.
+사진 판정 프롬프트 원문은 [`src/moamu_ai/prompt_versions/`](src/moamu_ai/prompt_versions/)에, 목표 분석 프롬프트는 [`src/moamu_ai/goal_prompt_versions/`](src/moamu_ai/goal_prompt_versions/)에 버전별로 보존합니다. `.env`의 `AI_PROMPT_VERSION`과 `AI_GOAL_PROMPT_VERSION`으로 각 기능의 기본 버전을 선택합니다. 벤치마크에서는 `--prompt-version`으로 사진 판정 프롬프트를 따로 지정할 수 있습니다.
 
 ## 오프라인 평가
 

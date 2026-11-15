@@ -12,13 +12,26 @@ from moamu_ai.errors import (
     ModelProviderError,
     ProviderConfigurationError,
 )
+from moamu_ai.goal_prompts import (
+    DEFAULT_GOAL_PROMPT_VERSION,
+    build_goal_analysis_prompt,
+    get_goal_prompt_definition,
+)
 from moamu_ai.prompts import (
     DEFAULT_PROMPT_VERSION,
     build_verification_prompt,
     get_prompt_definition,
 )
-from moamu_ai.providers.base import InferenceResult, InferenceUsage
-from moamu_ai.schemas import ConditionSnapshot, ModelJudgmentResponse
+from moamu_ai.providers.base import (
+    InferenceResult,
+    InferenceUsage,
+)
+from moamu_ai.schemas import (
+    ConditionSnapshot,
+    GoalAnalysisOutput,
+    GoalVerifiabilityRequest,
+    ModelJudgmentResponse,
+)
 
 GEMINI_MAX_OUTPUT_TOKENS = 512
 
@@ -133,9 +146,85 @@ class GeminiPhotoJudge:
         )
 
 
+class GeminiGoalAnalyzer:
+    """Gemini API로 자유목표의 사진 인증 가능성을 분석한다."""
+
+    def __init__(
+        self,
+        api_key: Optional[SecretStr],
+        model: str,
+        timeout_seconds: float = 45.0,
+        client=None,
+        prompt_version: str = DEFAULT_GOAL_PROMPT_VERSION,
+        thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None,
+    ):
+        """Gemini 클라이언트와 목표 분석 옵션을 설정한다."""
+        if api_key is None or not api_key.get_secret_value():
+            raise ProviderConfigurationError("GEMINI_TOKEN_API_KEY is not configured")
+        self.model = model
+        self.timeout_seconds = timeout_seconds
+        self.prompt_version = get_goal_prompt_definition(prompt_version).version
+        self.thinking_level = thinking_level
+        self.max_output_tokens = 1024
+        self.client = client or genai.Client(
+            api_key=api_key.get_secret_value(),
+            http_options=types.HttpOptions(
+                timeout=int(timeout_seconds * 1000),
+                retry_options=types.HttpRetryOptions(attempts=1),
+            ),
+        )
+
+    def analyze(self, request: GoalVerifiabilityRequest) -> GoalAnalysisOutput:
+        """Gemini에 텍스트 목표를 보내 구조화된 분석 결과를 받는다."""
+        prompt = build_goal_analysis_prompt(request, version=self.prompt_version)
+        config = {
+            "response_mime_type": "application/json",
+            "response_schema": _gemini_goal_response_schema(),
+            "temperature": 0,
+            "max_output_tokens": self.max_output_tokens,
+        }
+        if self.thinking_level is not None:
+            config["thinking_config"] = types.ThinkingConfig(
+                thinking_level=self.thinking_level
+            )
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(**config),
+            )
+        except Exception as exc:
+            raise ModelProviderError("Gemini goal analysis request failed") from exc
+
+        response_text = getattr(response, "text", None)
+        if not response_text:
+            raise InvalidModelOutputError("Gemini returned no goal analysis result")
+        try:
+            parsed = GoalAnalysisOutput.model_validate_json(response_text)
+        except (ValidationError, ValueError) as exc:
+            raise InvalidModelOutputError("Gemini returned an invalid goal analysis") from exc
+
+        return parsed
+
+
 def _gemini_response_schema() -> dict:
     """Pydantic 응답 모델을 Gemini가 지원하는 스키마로 변환한다."""
     schema = ModelJudgmentResponse.model_json_schema()
+    pending = [schema]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, dict):
+            current.pop("additionalProperties", None)
+            pending.extend(current.values())
+        elif isinstance(current, list):
+            pending.extend(current)
+    return schema
+
+
+def _gemini_goal_response_schema() -> dict:
+    """목표 분석 Pydantic 응답을 Gemini JSON 스키마로 변환한다."""
+    schema = GoalAnalysisOutput.model_json_schema(by_alias=True)
     pending = [schema]
     while pending:
         current = pending.pop()

@@ -7,13 +7,26 @@ import httpx
 from pydantic import ValidationError
 
 from moamu_ai.errors import InvalidModelOutputError, ModelProviderError
+from moamu_ai.goal_prompts import (
+    DEFAULT_GOAL_PROMPT_VERSION,
+    build_goal_analysis_prompt,
+    get_goal_prompt_definition,
+)
 from moamu_ai.prompts import (
     DEFAULT_PROMPT_VERSION,
     build_verification_prompt,
     get_prompt_definition,
 )
-from moamu_ai.providers.base import InferenceResult, InferenceUsage
-from moamu_ai.schemas import ConditionSnapshot, ModelJudgmentResponse
+from moamu_ai.providers.base import (
+    InferenceResult,
+    InferenceUsage,
+)
+from moamu_ai.schemas import (
+    ConditionSnapshot,
+    GoalAnalysisOutput,
+    GoalVerifiabilityRequest,
+    ModelJudgmentResponse,
+)
 
 
 class OllamaPhotoJudge:
@@ -103,3 +116,51 @@ class OllamaPhotoJudge:
                 total_tokens=total_tokens,
             ),
         )
+
+
+class OllamaGoalAnalyzer:
+    """로컬 Ollama 서버로 자유목표의 사진 인증 가능성을 분석한다."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        timeout_seconds: float = 45.0,
+        client: Optional[httpx.Client] = None,
+        prompt_version: str = DEFAULT_GOAL_PROMPT_VERSION,
+    ):
+        """Ollama 서버 주소와 목표 분석 옵션을 설정한다."""
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.timeout_seconds = timeout_seconds
+        self.prompt_version = get_goal_prompt_definition(prompt_version).version
+        self.client = client or httpx.Client(timeout=timeout_seconds)
+
+    def analyze(self, request: GoalVerifiabilityRequest) -> GoalAnalysisOutput:
+        """Ollama에 목표 텍스트를 보내 구조화된 분석 결과를 받는다."""
+        prompt = build_goal_analysis_prompt(request, version=self.prompt_version)
+        schema = GoalAnalysisOutput.model_json_schema(by_alias=True)
+        try:
+            response = self.client.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "format": schema,
+                    "options": {"temperature": 0, "num_predict": 1024},
+                    "stream": False,
+                },
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ModelProviderError("Ollama goal analysis request failed") from exc
+
+        response_text = payload.get("message", {}).get("content")
+        if not isinstance(response_text, str) or not response_text:
+            raise InvalidModelOutputError("Ollama returned no goal analysis result")
+        try:
+            return GoalAnalysisOutput.model_validate_json(response_text)
+        except (ValidationError, ValueError) as exc:
+            raise InvalidModelOutputError("Ollama returned an invalid goal analysis") from exc

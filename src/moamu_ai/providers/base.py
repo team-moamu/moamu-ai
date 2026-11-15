@@ -2,7 +2,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional, Protocol
 
-from moamu_ai.schemas import ConditionResult, ConditionSnapshot
+from moamu_ai.schemas import (
+    ConditionResult,
+    ConditionSnapshot,
+    GoalAnalysisOutput,
+    GoalVerifiabilityRequest,
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +35,13 @@ class PhotoJudge(Protocol):
 
     def evaluate(self, image_path: Path, conditions: list[ConditionSnapshot]) -> InferenceResult:
         """이미지를 판정해 각 조건에 대한 결과와 사용량을 반환한다."""
+
+
+class GoalAnalyzer(Protocol):
+    """자유목표의 사진 인증 가능성을 분석하는 모델 인터페이스."""
+
+    def analyze(self, request: GoalVerifiabilityRequest) -> GoalAnalysisOutput:
+        """목표 분석 결과를 반환한다."""
 
 
 JudgeFactory = Callable[[], PhotoJudge]
