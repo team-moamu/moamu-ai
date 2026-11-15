@@ -127,6 +127,110 @@ class PhotoVerificationErrorResponse(BaseModel):
     error: ApiErrorDetail
 
 
+class GoalCategoryPath(BaseModel):
+    """자유목표에 연결할 대·중·소 분류 경로."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    major: str = Field(min_length=1, max_length=100)
+    middle: str = Field(min_length=1, max_length=100)
+    minor: str = Field(min_length=1, max_length=100)
+
+    @field_validator("major", "middle", "minor")
+    @classmethod
+    def validate_category_name(cls, value: str) -> str:
+        """분류명이 공백뿐인 값이 아닌지 확인한다."""
+        if not value.strip():
+            raise ValueError("category names must not be blank")
+        return value
+
+
+class GoalVerifiabilityRequest(BaseModel):
+    """사진 인증 가능 여부 내부 API 요청 모델."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    goal: str = Field(min_length=1, max_length=1000)
+    category_path: Optional[GoalCategoryPath] = Field(alias="categoryPath")
+
+    @field_validator("goal")
+    @classmethod
+    def validate_goal(cls, value: str) -> str:
+        """목표 문장이 공백뿐인 값이 아닌지 확인한다."""
+        if not value.strip():
+            raise ValueError("goal must not be blank")
+        return value
+
+
+class GoalAnalysisOutput(BaseModel):
+    """모델이 생성하는 사진 인증 가능 여부 결과."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    status: Literal["VERIFIABLE", "NOT_VERIFIABLE"]
+    normalized_goal: Optional[str] = Field(alias="normalizedGoal", max_length=1000)
+    proposed_category_path: Optional[GoalCategoryPath] = Field(alias="proposedCategoryPath")
+    conditions: list[str]
+    photo_guide: Optional[str] = Field(alias="photoGuide", max_length=500)
+    verification_scope: Optional[str] = Field(alias="verificationScope", max_length=1000)
+    alternatives: list[str]
+
+    @model_validator(mode="after")
+    def validate_status_fields(self):
+        """판정 상태에 맞는 필드 조합과 문자열 길이를 확인한다."""
+        if self.status == "VERIFIABLE":
+            if not self.normalized_goal or not self.normalized_goal.strip():
+                raise ValueError("verifiable results require a normalized goal")
+            if not self.conditions:
+                raise ValueError("verifiable results require at least one condition")
+            if any(not item.strip() or len(item) > 300 for item in self.conditions):
+                raise ValueError("conditions must be non-blank and at most 300 characters")
+            if not self.photo_guide or not self.photo_guide.strip():
+                raise ValueError("verifiable results require a photo guide")
+            if not self.verification_scope or not self.verification_scope.strip():
+                raise ValueError("verifiable results require a verification scope")
+            if self.alternatives:
+                raise ValueError("verifiable results must not include alternatives")
+        else:
+            if self.normalized_goal is not None or self.proposed_category_path is not None:
+                raise ValueError("not-verifiable results must not include normalized fields")
+            if (
+                self.conditions
+                or self.photo_guide is not None
+                or self.verification_scope is not None
+            ):
+                raise ValueError("not-verifiable results must not include verification fields")
+            if len(self.alternatives) != 3:
+                raise ValueError("not-verifiable results require exactly three alternatives")
+
+        if any(not item.strip() or len(item) > 500 for item in self.alternatives):
+            raise ValueError("alternatives must be non-blank and at most 500 characters")
+        return self
+
+
+class GoalVerifiabilityResponse(GoalAnalysisOutput):
+    """사진 인증 가능 여부 내부 API 응답 모델."""
+
+    goal: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("goal")
+    @classmethod
+    def validate_original_goal(cls, value: str) -> str:
+        """반환할 원문 목표가 공백뿐인 값이 아닌지 확인한다."""
+        if not value.strip():
+            raise ValueError("goal must not be blank")
+        return value
+
+
+class GoalAnalysisErrorResponse(BaseModel):
+    """사진 인증 가능 여부 API의 오류 코드와 메시지."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: Literal["INVALID_REQUEST", "INTERNAL_SERVER_ERROR", "AI_MODEL_UNAVAILABLE"]
+    message: str = Field(min_length=1, max_length=500)
+
+
 class ExpectedConditionResult(BaseModel):
     """평가 데이터에서 정답 상태와 라벨 근거를 보관한다."""
 
