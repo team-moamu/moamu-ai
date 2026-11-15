@@ -1,4 +1,97 @@
-# 내부 AI 사진 판정 API 계약
+# 내부 AI API 계약
+
+## `POST /internal/goals/evaluate-verifiability`
+
+자유목표가 사진으로 인증 가능한지 판단하고, 인증 조건·촬영 가이드·판정 범위와
+분류 후보 또는 대안 목표를 반환하는 내부 API다. `categoryPath`는 필수 필드이며,
+기존 분류 경로를 재사용할 때는 대·중·소 분류명을 전달하고 신규 분류 후보가
+필요하면 `null`을 전달한다. 분석 결과는 AI 모델이 만들며 카테고리 DB 조회·저장,
+Redis 보관과 목표 확정은 백엔드가 담당한다.
+
+### 요청
+
+```json
+{
+  "goal": "매일 영어 뉴스 10분 듣고 새로 들은 표현 적기",
+  "categoryPath": null
+}
+```
+
+### 성공 응답: 사진 인증 가능
+
+```json
+{
+  "status": "VERIFIABLE",
+  "goal": "매일 영어 뉴스 10분 듣고 새로 들은 표현 적기",
+  "normalizedGoal": "매일 영어 뉴스에서 들은 표현 기록하기",
+  "proposedCategoryPath": {
+    "major": "학습",
+    "middle": "외국어",
+    "minor": "듣기 학습"
+  },
+  "conditions": [
+    "영어 뉴스에서 들은 표현을 기록한 학습 흔적이 사진에서 확인되어야 합니다."
+  ],
+  "photoGuide": "기록한 표현이 읽히도록 노트나 학습 기록을 촬영해 주세요.",
+  "verificationScope": "사진에 남은 표현 기록을 확인합니다. 실제 청취 시간은 판정 범위에서 제외합니다.",
+  "alternatives": []
+}
+```
+
+### 성공 응답: 사진 인증 어려움
+
+`NOT_VERIFIABLE`은 정상 판정이며 HTTP 200으로 반환한다. 대안 목표를 정확히 세 개
+포함한다.
+
+```json
+{
+  "status": "NOT_VERIFIABLE",
+  "goal": "매일 감사한 마음 갖기",
+  "normalizedGoal": null,
+  "proposedCategoryPath": null,
+  "conditions": [],
+  "photoGuide": null,
+  "verificationScope": null,
+  "alternatives": [
+    "오늘 감사한 일 한 가지 적기",
+    "고마웠던 순간을 일기에 기록하기",
+    "감사한 사람에게 전할 문장 써보기"
+  ]
+}
+```
+
+### 요청·응답 규칙
+
+| 필드 | 규칙 |
+|---|---|
+| `goal` | 공백이 아닌 사용자 원문, 최대 1,000자 |
+| `categoryPath` | 필수. `null` 또는 `major`, `middle`, `minor`가 모두 있는 객체 |
+| `normalizedGoal` | `VERIFIABLE`에서 공백이 아닌 정리 목표. `NOT_VERIFIABLE`에서는 `null` |
+| `proposedCategoryPath` | 입력 경로가 `null`인 인증 가능 결과에서만 제안 객체. 기존 경로를 입력하면 `null` |
+| `conditions` | 인증 가능 결과에 한 개 이상, 각 최대 300자. 인증 불가 결과에서는 빈 배열 |
+| `photoGuide` | 인증 가능 결과에서 최대 500자. 인증 불가 결과에서는 `null` |
+| `verificationScope` | 인증 가능 결과에서 최대 1,000자. 인증 불가 결과에서는 `null` |
+| `alternatives` | 인증 가능 결과에서는 빈 배열. 인증 불가 결과에서는 사진으로 확인 가능한 목표 세 개 |
+
+```bash
+curl --request POST \
+  --url 'http://127.0.0.1:8000/internal/goals/evaluate-verifiability' \
+  --header 'Content-Type: application/json' \
+  --data '{"goal":"매일 영어 뉴스 10분 듣고 새 표현 적기","categoryPath":null}'
+```
+
+### 오류 응답
+
+| HTTP | 코드 | 의미 |
+|---:|---|---|
+| 400 | `INVALID_REQUEST` | JSON 형식, 목표 문장 또는 필수 `categoryPath`가 유효하지 않음 |
+| 500 | `INTERNAL_SERVER_ERROR` | 모델 공급자 장애 이외의 내부 처리 오류 |
+| 503 | `AI_MODEL_UNAVAILABLE` | 모델 설정·호출 오류 또는 모델 응답 계약 위반 |
+
+목표 분석용 프롬프트는 `src/moamu_ai/goal_prompt_versions/` 아래 버전별로 관리하며,
+`.env`의 `AI_GOAL_PROMPT_VERSION`으로 선택한다. 공급자는 기존 `AI_PROVIDER` 설정을
+공유하므로 Gemini와 Ollama 중 하나를 지정한다. 이 API는 목표 텍스트만 모델에 전달하고
+이미지를 보내지 않는다.
 
 ## 담당 범위
 
