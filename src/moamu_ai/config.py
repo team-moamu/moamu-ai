@@ -4,6 +4,10 @@ from typing import Literal, Optional
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from moamu_ai.goal_prompts import (
+    DEFAULT_GOAL_PROMPT_VERSION,
+    get_goal_prompt_definition,
+)
 from moamu_ai.prompts import DEFAULT_PROMPT_VERSION, get_prompt_definition
 
 
@@ -23,6 +27,7 @@ class Settings(BaseSettings):
     ai_model_version: str = Field(default="photo-verifier-v1", min_length=1, max_length=50)
     ai_image_root: Path = Path("./data/images")
     ai_prompt_version: str = DEFAULT_PROMPT_VERSION
+    ai_goal_prompt_version: str = DEFAULT_GOAL_PROMPT_VERSION
     gemini_token_api_key: Optional[SecretStr] = None
     gemini_model: str = "gemini-3.5-flash-lite"
     gemini_thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None
@@ -50,4 +55,11 @@ class Settings(BaseSettings):
     def validate_prompt_version(cls, value: str) -> str:
         """설정된 프롬프트 버전이 등록되어 있는지 확인한다."""
         get_prompt_definition(value)
+        return value
+
+    @field_validator("ai_goal_prompt_version")
+    @classmethod
+    def validate_goal_prompt_version(cls, value: str) -> str:
+        """설정한 자유목표 분석 프롬프트 버전이 등록되어 있는지 확인한다."""
+        get_goal_prompt_definition(value)
         return value

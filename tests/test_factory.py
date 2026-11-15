@@ -31,3 +31,23 @@ def test_provider_factory_passes_the_configured_prompt_version(monkeypatch, prov
     assert judge.kwargs["prompt_version"] == "photo-verification-v3"
     if provider == "gemini":
         assert judge.kwargs["thinking_level"] == "low"
+
+
+@pytest.mark.parametrize("provider", ["gemini", "ollama"])
+def test_goal_analyzer_factory_uses_the_selected_provider(monkeypatch, provider):
+    """목표 분석 생성기가 설정된 공급자와 프롬프트 버전을 전달한다."""
+    monkeypatch.setattr(factory, "GeminiGoalAnalyzer", CapturingJudge)
+    monkeypatch.setattr(factory, "OllamaGoalAnalyzer", CapturingJudge)
+    settings = Settings(
+        _env_file=None,
+        ai_provider=provider,
+        gemini_token_api_key=SecretStr("test-key"),
+        ai_goal_prompt_version="goal-verifiability-v1",
+        gemini_thinking_level="low",
+    )
+
+    analyzer = factory.create_goal_analyzer(settings)
+
+    assert analyzer.kwargs["prompt_version"] == "goal-verifiability-v1"
+    if provider == "gemini":
+        assert analyzer.kwargs["thinking_level"] == "low"
