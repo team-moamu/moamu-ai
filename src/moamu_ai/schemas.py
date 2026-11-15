@@ -132,9 +132,9 @@ class GoalCategoryPath(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    major: str = Field(min_length=1, max_length=100)
-    middle: str = Field(min_length=1, max_length=100)
-    minor: str = Field(min_length=1, max_length=100)
+    major: str = Field(min_length=1)
+    middle: str = Field(min_length=1)
+    minor: str = Field(min_length=1)
 
     @field_validator("major", "middle", "minor")
     @classmethod
@@ -150,7 +150,7 @@ class GoalVerifiabilityRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    goal: str = Field(min_length=1, max_length=1000)
+    goal: str = Field(min_length=1)
     category_path: Optional[GoalCategoryPath] = Field(alias="categoryPath")
 
     @field_validator("goal")
@@ -168,7 +168,7 @@ class GoalAnalysisOutput(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     status: Literal["VERIFIABLE", "NOT_VERIFIABLE"]
-    normalized_goal: Optional[str] = Field(alias="normalizedGoal", max_length=1000)
+    normalized_goal: Optional[str] = Field(alias="normalizedGoal")
     proposed_category_path: Optional[GoalCategoryPath] = Field(alias="proposedCategoryPath")
     conditions: list[str]
     photo_guide: Optional[str] = Field(alias="photoGuide", max_length=500)
@@ -203,15 +203,15 @@ class GoalAnalysisOutput(BaseModel):
             if len(self.alternatives) != 3:
                 raise ValueError("not-verifiable results require exactly three alternatives")
 
-        if any(not item.strip() or len(item) > 500 for item in self.alternatives):
-            raise ValueError("alternatives must be non-blank and at most 500 characters")
+        if any(not item.strip() for item in self.alternatives):
+            raise ValueError("alternatives must not be blank")
         return self
 
 
 class GoalVerifiabilityResponse(GoalAnalysisOutput):
     """사진 인증 가능 여부 내부 API 응답 모델."""
 
-    goal: str = Field(min_length=1, max_length=1000)
+    goal: str = Field(min_length=1)
 
     @field_validator("goal")
     @classmethod

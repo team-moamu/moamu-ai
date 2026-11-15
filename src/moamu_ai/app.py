@@ -106,7 +106,7 @@ def create_app(
             return _goal_error_response(
                 status_code=400,
                 code="INVALID_REQUEST",
-                message="요청 형식 또는 필수 값이 올바르지 않습니다.",
+                message="요청이 올바르지 않습니다.",
             )
         try:
             payload = await request.json()

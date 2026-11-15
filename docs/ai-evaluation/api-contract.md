@@ -64,7 +64,7 @@ Redis 보관과 목표 확정은 백엔드가 담당한다.
 
 | 필드 | 규칙 |
 |---|---|
-| `goal` | 공백이 아닌 사용자 원문, 최대 1,000자 |
+| `goal` | 공백이 아닌 사용자 원문 |
 | `categoryPath` | 필수. `null` 또는 `major`, `middle`, `minor`가 모두 있는 객체 |
 | `normalizedGoal` | `VERIFIABLE`에서 공백이 아닌 정리 목표. `NOT_VERIFIABLE`에서는 `null` |
 | `proposedCategoryPath` | 입력 경로가 `null`인 인증 가능 결과에서만 제안 객체. 기존 경로를 입력하면 `null` |
@@ -81,6 +81,15 @@ curl --request POST \
 ```
 
 ### 오류 응답
+
+400 요청 오류 응답 예시:
+
+```json
+{
+  "code": "INVALID_REQUEST",
+  "message": "요청이 올바르지 않습니다."
+}
+```
 
 | HTTP | 코드 | 의미 |
 |---:|---|---|

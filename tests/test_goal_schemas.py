@@ -47,6 +47,33 @@ def test_goal_request_rejects_empty_or_whitespace_goal(goal):
         GoalVerifiabilityRequest.model_validate({"goal": goal, "categoryPath": None})
 
 
+def test_goal_contract_does_not_add_undocumented_text_length_limits():
+    """내부 API 명세에 상한이 없는 목표·분류명·대안 길이를 허용한다."""
+    goal = "목표" + ("가" * 1000)
+    category_path = {
+        "major": "대" * 101,
+        "middle": "중분류",
+        "minor": "소분류",
+    }
+    request = GoalVerifiabilityRequest.model_validate(
+        {"goal": goal, "categoryPath": category_path}
+    )
+    analysis = GoalAnalysisOutput.model_validate(
+        {
+            "status": "NOT_VERIFIABLE",
+            "normalizedGoal": None,
+            "proposedCategoryPath": None,
+            "conditions": [],
+            "photoGuide": None,
+            "verificationScope": None,
+            "alternatives": ["대안" + ("가" * 500), "대안 둘", "대안 셋"],
+        }
+    )
+
+    assert request.goal == goal
+    assert len(analysis.alternatives[0]) == 502
+
+
 def test_verifiable_goal_output_requires_evidence_fields_and_no_alternatives():
     """인증 가능한 목표 출력에 조건과 촬영 정보를 요구한다."""
     output = GoalAnalysisOutput.model_validate(
