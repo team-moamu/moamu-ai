@@ -15,10 +15,14 @@ from moamu_ai.errors import (
     ProviderConfigurationError,
     UnsupportedImageError,
 )
+from moamu_ai.goal_service import GoalVerifiabilityService
 from moamu_ai.image_sources import ImageStore, create_image_store
-from moamu_ai.providers.base import PhotoJudge
-from moamu_ai.providers.factory import create_photo_judge
+from moamu_ai.providers.base import GoalAnalyzer, PhotoJudge
+from moamu_ai.providers.factory import create_goal_analyzer, create_photo_judge
 from moamu_ai.schemas import (
+    GoalAnalysisErrorResponse,
+    GoalVerifiabilityRequest,
+    GoalVerifiabilityResponse,
     PhotoVerificationErrorResponse,
     PhotoVerificationRequest,
     PhotoVerificationResponse,
@@ -32,6 +36,7 @@ def create_app(
     settings: Optional[Settings] = None,
     judge: Optional[PhotoJudge] = None,
     image_store: Optional[ImageStore] = None,
+    goal_analyzer: Optional[GoalAnalyzer] = None,
 ) -> FastAPI:
     """사진 인증 API 애플리케이션을 구성한다.
 
@@ -39,6 +44,7 @@ def create_app(
         settings: 앱에서 사용할 설정. 생략하면 환경 변수에서 읽는다.
         judge: 주입할 판정 모델. 생략하면 첫 요청 때 생성한다.
         image_store: 주입할 이미지 저장소. 생략하면 설정에 따라 생성한다.
+        goal_analyzer: 주입할 자유목표 분석기. 생략하면 첫 요청 때 생성한다.
 
     Returns:
         상태 확인 및 사진 판정 경로가 등록된 FastAPI 앱.
@@ -52,7 +58,9 @@ def create_app(
     app.state.settings = configured_settings
     app.state.judge = judge
     app.state.image_store = image_store
+    app.state.goal_analyzer = goal_analyzer
     app.state.provider_lock = Lock()
+    app.state.goal_provider_lock = Lock()
     app.state.image_store_lock = Lock()
 
     def get_judge() -> PhotoJudge:
@@ -66,6 +74,18 @@ def create_app(
                 active_judge = create_photo_judge(app.state.settings)
                 app.state.judge = active_judge
         return active_judge
+
+    def get_goal_analyzer() -> GoalAnalyzer:
+        """목표 분석기를 필요할 때 한 번 생성해 반환한다."""
+        active_analyzer = app.state.goal_analyzer
+        if active_analyzer is not None:
+            return active_analyzer
+        with app.state.goal_provider_lock:
+            active_analyzer = app.state.goal_analyzer
+            if active_analyzer is None:
+                active_analyzer = create_goal_analyzer(app.state.settings)
+                app.state.goal_analyzer = active_analyzer
+        return active_analyzer
 
     def get_image_store() -> ImageStore:
         """이미지 저장소를 필요할 때 한 번 생성해 반환한다."""
@@ -82,6 +102,12 @@ def create_app(
     @app.exception_handler(RequestValidationError)
     async def invalid_request_handler(request: Request, _exc: RequestValidationError):
         """요청 검증 오류를 백엔드 공통 오류 응답으로 변환한다."""
+        if request.url.path == "/internal/goals/evaluate-verifiability":
+            return _goal_error_response(
+                status_code=400,
+                code="INVALID_REQUEST",
+                message="요청 형식 또는 필수 값이 올바르지 않습니다.",
+            )
         try:
             payload = await request.json()
         except Exception:
@@ -173,6 +199,45 @@ def create_app(
                 verification_id=payload.verification_id,
             )
 
+    @app.post(
+        "/internal/goals/evaluate-verifiability",
+        response_model=GoalVerifiabilityResponse,
+        tags=["internal goal analysis"],
+        summary="Evaluate whether a user goal can be verified from a photo",
+        responses={
+            400: {
+                "model": GoalAnalysisErrorResponse,
+                "description": "Invalid request",
+            },
+            500: {
+                "model": GoalAnalysisErrorResponse,
+                "description": "Internal AI server error",
+            },
+            503: {
+                "model": GoalAnalysisErrorResponse,
+                "description": "AI model temporarily unavailable",
+            },
+        },
+    )
+    def evaluate_goal(payload: GoalVerifiabilityRequest):
+        """자유목표의 사진 인증 가능 여부와 안내를 반환한다."""
+        try:
+            return GoalVerifiabilityService(get_goal_analyzer()).evaluate(payload)
+        except (ProviderConfigurationError, ModelProviderError, InvalidModelOutputError):
+            logger.warning("goal_analysis_error code=AI_MODEL_UNAVAILABLE")
+            return _goal_error_response(
+                status_code=503,
+                code="AI_MODEL_UNAVAILABLE",
+                message="AI 모델을 일시적으로 사용할 수 없습니다.",
+            )
+        except Exception:
+            logger.exception("goal_analysis_error code=INTERNAL_SERVER_ERROR")
+            return _goal_error_response(
+                status_code=500,
+                code="INTERNAL_SERVER_ERROR",
+                message="사진 인증 가능 여부를 판정하는 중 오류가 발생했습니다.",
+            )
+
     return app
 
 
@@ -224,6 +289,16 @@ def _error_response(
         status_code=status_code,
         content=body.model_dump(mode="json"),
     )
+
+
+def _goal_error_response(
+    status_code: int,
+    code: str,
+    message: str,
+) -> JSONResponse:
+    """자유목표 API 오류를 전용 응답 형식으로 직렬화한다."""
+    body = GoalAnalysisErrorResponse.model_validate({"code": code, "message": message})
+    return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
 
 
 app = create_app()
