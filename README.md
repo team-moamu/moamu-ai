@@ -108,6 +108,18 @@ curl --request POST \
   --data '{"goal":"매일 영어 뉴스 10분 듣고 새 표현 적기","categoryPath":null}'
 ```
 
+서버는 한 터미널에서 `./run.sh`로 실행하고, 다른 터미널에서 기본 요청을 보냅니다.
+목표와 기존 분류 경로를 직접 바꿔 확인할 수도 있습니다.
+
+```bash
+./test_goal.sh
+./test_goal.sh '매일 영어 표현 적기' '{"major":"학습","middle":"외국어","minor":"작문"}'
+./test_goal.sh '매일 행복한 마음 갖기'
+```
+
+기존 사진 판정 API 테스트와 마찬가지로 `MOAMU_AI_URL` 환경 변수로 요청 URL을
+덮어쓸 수 있습니다. 실제 모델 호출은 실행 중인 서버의 `AI_PROVIDER` 설정을 따릅니다.
+
 ## 모델과 프롬프트 설정
 
 Gemini API는 `AI_PROVIDER=gemini`, `GEMINI_TOKEN_API_KEY`, `GEMINI_MODEL`을 설정합니다. 사진 판정 프롬프트는 `photo-verification-v1`부터 `photo-verification-v4`까지 선택할 수 있고, 목표 분석 프롬프트는 `AI_GOAL_PROMPT_VERSION`으로 선택합니다. 모델 비교 시 `GEMINI_THINKING_LEVEL`을 지정해 추론 수준을 고정할 수 있습니다.
