@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.115,<1.0",
-    "google-genai>=1.30,<2.0",
+    "google-genai>=2.0,<3.0",
     "boto3>=1.35,<2.0",
     "httpx>=0.27,<1.0",
     "pydantic>=2.9,<3.0",
@@ -31,6 +31,7 @@ dev = [
 moamu-ai = "moamu_ai.cli:main"
 moamu-evaluate = "moamu_ai.benchmark:main"
 moamu-compare-prompts = "moamu_ai.benchmark:compare_main"
+moamu-generate-artwork = "moamu_ai.artwork_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
