@@ -27,7 +27,7 @@ Notion에는 네 개의 연결된 표를 둔다. **모델 카탈로그**는 모�
 |---|---|---|---|---|---|---|
 | Gemini 3.5 Flash-Lite | Google Gemini API | `gemini-3.5-flash-lite` | 텍스트, 이미지 | 클라우드 API | 입력 $0.30 / 출력 $2.50 (100만 토큰당, 2026-11-03 확인) | 30장 프롬프트 비교와 6장 모델 스크리닝 실행 |
 | Gemini 3.8 Flash | Google Gemini API | `gemini-3.8-flash` | 텍스트, 이미지 | 클라우드 API | 입력 $0.75 / 출력 $3.75 (100만 토큰당, 2026-12-31까지 표준 단가) | 양성 6장 스크리닝만 완료. 추가 비교 필요 |
-| Gemini 3.1 Flash Image | Google Gemini API | `gemini-3.1-flash-image` | 텍스트, 이미지 입력 및 이미지 출력 | 클라우드 API | 입력 $0.50 / 출력 텍스트 $3.00 (100만 토큰당), 1K 이미지 약 $0.067 (2026-11-24 확인) | 명화 편집 1회 성공. 단일 파일럿이며 추가 평가 필요 |
+| Gemini 3.1 Flash Image | Google Gemini API | `gemini-3.1-flash-image` | 텍스트, 이미지 입력 및 이미지 출력 | 클라우드 API | 입력 $0.50 / 출력 텍스트 $3.00 (100만 토큰당), 1K 이미지 약 $0.067 (2026-11-24 확인) | 명화 편집 4회 성공. 2개 원본 작품을 사용한 소규모 파일럿 |
 | Qwen3-VL 2B | Ollama | `qwen3-vl:2b` | 텍스트, 이미지 | 로컬 CPU 후보 | 로컬 실행, 토큰 API 단가 없음 | 어댑터 코드만 구현. 실제 Ollama 추론은 미실행 |
 | Gemma 3 4B | Ollama | `gemma3:4b` | 텍스트, 이미지 | 로컬 CPU 후보 | 로컬 실행, 토큰 API 단가 없음 | 선택 후보. 실제 추론 미실행 |
 
@@ -93,13 +93,23 @@ Notion에는 네 개의 연결된 표를 둔다. **모델 카탈로그**는 모�
 
 ### 명화 편집 파일럿 (2026-11-24)
 
-이 기록은 실제 Gemini 이미지 편집 호출 1건에 대한 초기 시각 검수다. 성공률과 조건 검수는 각 1건 기준이며, 모델 성능을 일반화할 수 있는 정량 평가가 아니다.
+이 기록은 실제 Gemini 이미지 편집 호출 4건에 대한 초기 시각 검수다. 작은 표본이며 한 명이 검수했으므로 모델 성능을 일반화할 수 있는 정량 평가가 아니다.
 
 | 실험명 | 모델 관계 | 프롬프트 관계 | 데이터셋 관계 | 입력 / 호출 | 생성 성공 | 조건 시각 검수 | 출력 파일 | 처리시간 | 비용 추정 | 결론 |
 |---|---|---|---|---:|---:|---:|---|---:|---:|---|
-| 샤르댕 명화 피아노 연주 편집 | Gemini 3.1 Flash Image | `artwork-edit-v1` | 명화 편집 로컬 파일럿 1건 | 원본 1장 / 1회 | 1/1 (100%) | 2/2 조건 확인 | `data/artwork-tests/piano-playing-chardin-v1.jpg` (JPEG, 1156×912, 809,943 bytes) | CLI 전체 약 17.1초 (S3 다운로드·모델 호출·로컬 저장 포함) | 약 $0.067 이미지 출력 + 입력 사용량. 실제 청구액 미확인 | 원본 인물과 회화 질감을 유지하며 피아노·악보·건반을 누르는 손을 반영. 추가 사례로 검증 필요 |
+| 샤르댕 명화 피아노 연주 편집 | Gemini 3.1 Flash Image | `artwork-edit-v1` | 명화 편집 로컬 파일럿 4건 | 원본 1장 / 1회 | 1/1 | 2/2 조건 확인 | `data/artwork-tests/piano-playing-chardin-v1.jpg` (JPEG, 1156×912, 809,943 bytes) | 약 17.1초 | 약 $0.067 + 입력 사용량 | 피아노·악보·건반 연주 반영 |
+| 샤르댕 명화 노래 연습 편집 | Gemini 3.1 Flash Image | `artwork-edit-v1` | 명화 편집 로컬 파일럿 4건 | 원본 1장 / 1회 | 1/1 | 2/2 조건 확인 | `data/artwork-tests/daily-singing-chardin-v1.jpg` (JPEG, 1156×912, 811,363 bytes) | 미기록 | 약 $0.067 + 입력 사용량 | 노래하는 표정과 악보 반영 |
+| 샤르댕 명화 기타 연주 편집 | Gemini 3.1 Flash Image | `artwork-edit-v1` | 명화 편집 로컬 파일럿 4건 | 원본 1장 / 1회 | 1/1 | 2/2 조건 확인 | `data/artwork-tests/daily-guitar-chardin-v1.jpg` (JPEG, 1156×912, 820,184 bytes) | 약 16.7초 | 약 $0.067 + 입력 사용량 | 기타 몸통·지판과 양손 연주 반영 |
+| 프라고나르 명화 기타 연주 편집 | Gemini 3.1 Flash Image | `artwork-edit-v1` | 명화 편집 로컬 파일럿 4건 | 원본 1장 / 1회 | 1/1 | 2/2 조건 확인 | `data/artwork-tests/daily-guitar-fragonard-v1.jpg` (JPEG, 912×1146, 785,818 bytes) | 약 17.2초 | 약 $0.067 + 입력 사용량 | 같은 목표·조건을 다른 인물과 화풍의 원본에 반영 |
 
-요청 목표는 `피아노 치기`였고, 분류 입력은 `취미 > 음악 > 피아노`였다. 인증 조건은 `피아노 건반이 사진에서 식별되어야 한다`, `사람이 건반을 누르며 실제로 연주하는 모습이 보여야 한다`였다. S3 원본 키는 `original/the_little_schoolmistress.jpg`이며, 작품은 장 시메옹 샤르댕의 *The Little Schoolmistress*다. [미국 내셔널 갤러리 오브 아트 작품 페이지](https://www.nga.gov/artworks/98-little-schoolmistress)는 제작 시기를 1740년 이후로 기록하고 작품 이미지가 퍼블릭 도메인임을 표시한다. 시각 검수는 단일 검수자가 수행했다. 이미지 출력 비용은 [Gemini API 공식 가격표](https://ai.google.dev/gemini-api/docs/pricing)의 1K 단가로 계산했으며, 실제 청구 내역과 입력 토큰 사용량은 확인하지 않았다.
+| 목표 / 카테고리 | S3 원본 | 인증 조건 |
+|---|---|---|
+| `피아노 치기` / 취미 > 음악 > 피아노 | `original/the_little_schoolmistress.jpg` | 피아노 건반이 보여야 함; 사람이 건반을 누르며 연주해야 함 |
+| `매일 노래연습하기` / 취미 > 음악 > 보컬 | `original/the_little_schoolmistress.jpg` | 사람이 입을 열고 노래해야 함; 펼쳐진 악보가 보여야 함 |
+| `매일 기타 연습하기` / 취미 > 음악 > 기타 | `original/the_little_schoolmistress.jpg` | 기타 몸통·줄·지판이 보여야 함; 한 손으로 줄을 튕기고 다른 손으로 지판을 짚어야 함 |
+| `매일 기타 연습하기` / 취미 > 음악 > 기타 | `original/young_girl_reading.jpg` | 같은 목표·조건으로 원본만 바꿔 편집 |
+
+앞의 세 건은 S3 원본 `original/the_little_schoolmistress.jpg`(샤르댕, *The Little Schoolmistress*)를 사용했다. 마지막 건은 목표와 조건을 유지하고 원본만 `original/young_girl_reading.jpg`(프라고나르, *Young Girl Reading*)로 바꿨다. 두 원본의 이미지는 각각 [미국 내셔널 갤러리 오브 아트의 작품·권리 정보](https://www.nga.gov/artworks/98-little-schoolmistress), [프라고나르 작품·권리 정보](https://www.nga.gov/artworks/46303-young-girl-reading)에서 퍼블릭 도메인으로 표시된다. 네 결과 모두 한 명이 두 조건의 시각 표현을 확인했다. 총 출력 비용은 약 $0.268 + 입력 사용량이며 실제 청구액은 확인하지 않았다. 원본은 테스트에서 직접 지정했으므로 목표에 따른 카탈로그 자동 선택은 아직 평가하지 않았다.
 
 ## 3. 프롬프트 버전별 실험 기록
 
@@ -135,7 +145,7 @@ Notion에는 네 개의 연결된 표를 둔다. **모델 카탈로그**는 모�
 | 버전 ID | AI 기능 | 코드 위치 | 선택 설정 | 평가 상태 |
 |---|---|---|---|---|
 | `goal-verifiability-v1` | 자유목표 인증 가능 여부 분석 | `src/moamu_ai/goal_prompt_versions/v1.py` | `AI_GOAL_PROMPT_VERSION` | 구현 및 형식 검증 완료. 목표별 정답 데이터셋·정량 비교는 아직 없음 |
-| `artwork-edit-v1` | 자유목표에 맞춘 명화 편집 | `src/moamu_ai/artwork_prompt_versions/v1.py` | `AI_ARTWORK_PROMPT_VERSION` | 실제 편집 1회. 원본 화풍·구도·인물 보존과 조건별 행동·증거 추가를 지시. 더 많은 사례로 검증 필요 |
+| `artwork-edit-v1` | 자유목표에 맞춘 명화 편집 | `src/moamu_ai/artwork_prompt_versions/v1.py` | `AI_ARTWORK_PROMPT_VERSION` | 실제 편집 4회. 두 작품의 인물과 화풍을 보존하며 조건에 맞는 행동·증거를 추가. 더 많은 원본과 목표로 검증 필요 |
 
 목표 분석 모델 테스트가 실행되면 실제 공급자와 모델 ID, 이 프롬프트 버전, 같은 평가 데이터셋, 호출 수·토큰·비용·지연시간, 상태 판정과 응답 품질 결과를 한 실행으로 기록한다. 사진 판정 프롬프트 실험 표와 합산하지 않는다.
 
@@ -166,7 +176,7 @@ Notion에는 네 개의 연결된 표를 둔다. **모델 카탈로그**는 모�
 | 데이터셋명 | 버전 | 출처 | 이미지 / 도전 유형 | 조건 라벨 분포 | 분할 | 검수 | 매니페스트 | 이미지·출처 기록 | 한계 |
 |---|---|---|---|---|---|---|---|---|---|
 | 6개 도전 사진 판정 파일럿 | `2026-11-02` | Pexels | 30장 / 6개 유형, 유형별 5장 | 60개: `MET` 48, `NOT_MET` 12, `UNCERTAIN` 0 | `dev`만, 보류 세트 없음 | 단일 검수자 1명 | `data/evaluation/six-challenge-v2-pilot-20261102.jsonl` | 원본은 로컬 `AI_IMAGE_ROOT` 아래; 출처와 SHA-256은 [파일럿 보고서](six-category-v2-pilot-20261102.md)에 기록 | 유형별 부정 라벨이 2개뿐이고 독립 이중 검수 없음 |
-| 명화 편집 로컬 파일럿 1건 | `2026-11-24` | 미국 내셔널 갤러리 오브 아트 | 원본 1점 / 피아노 연주 목표 | 이미지 출력 1건; 조건 시각 검수 2개 | 개발용 단일 사례 | 단일 검수자 1명 | 별도 매니페스트 없음 | S3 `original/the_little_schoolmistress.jpg`; 결과 로컬 `data/artwork-tests/piano-playing-chardin-v1.jpg`; [작품·권리 정보](https://www.nga.gov/artworks/98-little-schoolmistress) | 목표·원본·프롬프트가 각각 1개뿐이며 정량 일반화에 사용할 수 없음 |
+| 명화 편집 로컬 파일럿 4건 | `2026-11-24` | 미국 내셔널 갤러리 오브 아트 | 원본 2점 / 피아노·노래·기타 목표 3종 | 이미지 출력 4건; 조건 시각 검수 8개 | 개발용 파일럿 | 단일 검수자 1명 | 별도 매니페스트 없음 | S3 `original/the_little_schoolmistress.jpg`, `original/young_girl_reading.jpg`; 결과 로컬 `data/artwork-tests/`; [샤르댕](https://www.nga.gov/artworks/98-little-schoolmistress), [프라고나르](https://www.nga.gov/artworks/46303-young-girl-reading) | 세 출력은 같은 원본을 사용하고 네 번째에서 원본을 바꿈. 단일 프롬프트·2개 원본·수동 선택이라 자동 선택이나 정량 일반화를 입증하지 않음 |
 
 평가 세트는 기존 긍정 사진 18장과 새 혼합 사례 12장으로 구성한다. 각 도전 유형은 사진 5장과 조건 라벨 10개이며, 그중 정답 부정 라벨은 유형별 2개다. 이 데이터는 프롬프트 오류를 찾는 개발용 파일럿이지 실제 사용자 사진 분포를 대표하는 보류 평가 세트가 아니다.
 
