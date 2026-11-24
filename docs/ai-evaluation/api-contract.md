@@ -265,3 +265,113 @@ Gemini 또는 Ollama 어댑터에는 이미지와 조건의 내부 순번, `code
 `src/moamu_ai/prompt_versions/` 아래에서 독립 관리한다. 벤치마크 CLI는
 `--prompt-version`으로 별도 버전을 선택할 수 있다. 모델 응답 스키마는 조건별
 판정 사유를 요구하고, API는 이를 `checks[].reason`으로 반환한다.
+
+## `POST /internal/artwork-generations`
+
+백엔드가 자유목표 명화 생성 작업을 접수하는 내부 API다. 대표 생성 작업만 전달되며,
+사용자 ID, 원문 목표, 일정은 포함하지 않는다. 같은 `taskId`와 `taskVersion`으로
+동일한 본문이 반복되면 기존 작업을 반환하고, 본문이 다르면 `409 Conflict`다.
+접수 전에 작업이 만료된 경우 생성하지 않는다.
+
+```json
+{
+  "taskId": 91,
+  "taskVersion": 1,
+  "expiresAt": "2026-11-23T04:02:00Z",
+  "normalizedGoal": "매일 물 마시기",
+  "categoryPath": {
+    "major": "건강",
+    "middle": "생활 습관",
+    "minor": "수분 섭취"
+  },
+  "conditions": ["물을 마신 활동 흔적이 사진에서 확인되어야 합니다."],
+  "photoGuide": "물과 컵이 보이도록 촬영해 주세요."
+}
+```
+
+신규 작업을 영속 저장한 뒤 `202 Accepted`와 `PENDING` 상태를 반환한다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "taskId": 91,
+    "taskVersion": 1,
+    "status": "PENDING"
+  }
+}
+```
+
+## `GET /internal/artwork-generations/{taskId}/versions/{taskVersion}`
+
+작업 버전의 현재 상태를 조회한다. 작업이 존재하면 HTTP 200이며, 상태에 따라
+아래 필드를 반환한다.
+
+| 상태 | 반환 필드 |
+|---|---|
+| `PENDING`, `RUNNING` | `taskId`, `taskVersion`, `status` |
+| `SUCCEEDED` | 공통 필드, `image`, `source`, `reuseAllowed` |
+| `FAILED` | 공통 필드, `errorCode`, `retryable` |
+
+성공 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "taskId": 91,
+    "taskVersion": 1,
+    "status": "SUCCEEDED",
+    "image": {
+      "key": "generated-artworks/91/1/result.png",
+      "contentType": "image/png",
+      "sizeBytes": 123456,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "source": {
+      "workId": "museum-123",
+      "title": "원본 명화",
+      "sourceUrl": "https://example.org/work/123",
+      "rightsCode": "PUBLIC_DOMAIN",
+      "rightsUrl": "https://example.org/work/123/rights",
+      "checkedAt": "2026-11-23T04:00:10Z"
+    },
+    "reuseAllowed": true
+  }
+}
+```
+
+`image.key`는 `generated-artworks/{taskId}/{taskVersion}/` 아래의 비공개 S3 객체다.
+크기와 SHA-256은 업로드한 실제 바이트 기준이다. `source`에는 원본 작품의 식별자,
+제목, 출처 링크, 권리 분류와 권리 확인 시각을 포함한다. FastAPI 성공은 이미지
+업로드까지를 뜻하며 도전 확정은 백엔드가 별도로 수행한다.
+
+실패 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "taskId": 91,
+    "taskVersion": 1,
+    "status": "FAILED",
+    "errorCode": "ARTWORK_GENERATION_FAILED",
+    "retryable": true
+  }
+}
+```
+
+작업 또는 버전을 찾지 못하면 HTTP 404와 다음 오류 구조를 반환한다.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ARTWORK_TASK_VERSION_NOT_FOUND",
+    "message": "요청한 작업 또는 버전을 찾을 수 없습니다."
+  }
+}
+```
+
+두 명화 API는 백엔드 서버 전용이다. 서비스 간 인증 방식과 자격 증명 배포는
+운영 연동 전에 확정한다.
