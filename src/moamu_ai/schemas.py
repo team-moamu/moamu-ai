@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional, Union
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -229,6 +231,156 @@ class GoalAnalysisErrorResponse(BaseModel):
 
     code: Literal["INVALID_REQUEST", "INTERNAL_SERVER_ERROR", "AI_MODEL_UNAVAILABLE"]
     message: str = Field(min_length=1, max_length=500)
+
+
+class ArtworkGenerationRequest(BaseModel):
+    """명화 생성 작업 접수에 사용하는 백엔드 요청 모델."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    task_id: int = Field(alias="taskId", strict=True, gt=0, le=9_223_372_036_854_775_807)
+    task_version: int = Field(alias="taskVersion", strict=True, gt=0)
+    expires_at: datetime = Field(alias="expiresAt")
+    normalized_goal: str = Field(alias="normalizedGoal", min_length=1)
+    category_path: GoalCategoryPath = Field(alias="categoryPath")
+    conditions: list[str] = Field(min_length=1)
+    photo_guide: str = Field(alias="photoGuide", min_length=1)
+
+    @field_validator("expires_at")
+    @classmethod
+    def validate_utc_expiry(cls, value: datetime) -> datetime:
+        """작업 만료 시각이 UTC 오프셋을 가진 시각인지 확인한다."""
+        if value.tzinfo is None or value.utcoffset() != timedelta(0):
+            raise ValueError("expiresAt must be a UTC timestamp")
+        return value.astimezone(timezone.utc)
+
+    @field_validator("normalized_goal", "photo_guide")
+    @classmethod
+    def validate_non_blank_text(cls, value: str) -> str:
+        """필수 안내 문구가 공백뿐인 값이 아닌지 확인한다."""
+        if not value.strip():
+            raise ValueError("text fields must not be blank")
+        return value
+
+    @field_validator("conditions")
+    @classmethod
+    def validate_conditions(cls, value: list[str]) -> list[str]:
+        """인증 조건 목록에 공백 문자열이 없는지 확인한다."""
+        if any(not condition.strip() for condition in value):
+            raise ValueError("conditions must not contain blank values")
+        return value
+
+
+class ArtworkImageMetadata(BaseModel):
+    """생성된 비공개 이미지 객체의 검증 메타데이터."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    key: str = Field(min_length=1)
+    content_type: str = Field(alias="contentType", pattern=r"^image/[a-zA-Z0-9.+-]+$")
+    size_bytes: int = Field(alias="sizeBytes", strict=True, gt=0)
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+
+
+class ArtworkSourceMetadata(BaseModel):
+    """생성에 사용한 원본 명화와 권리 확인 정보."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    work_id: str = Field(alias="workId", min_length=1)
+    title: str = Field(min_length=1)
+    source_url: str = Field(alias="sourceUrl", min_length=1)
+    rights_code: str = Field(alias="rightsCode", min_length=1)
+    rights_url: str = Field(alias="rightsUrl", min_length=1)
+    checked_at: datetime = Field(alias="checkedAt")
+
+    @field_validator("work_id", "title", "rights_code")
+    @classmethod
+    def validate_source_text(cls, value: str) -> str:
+        """출처 식별 정보가 공백뿐인 값이 아닌지 확인한다."""
+        if not value.strip():
+            raise ValueError("source metadata must not be blank")
+        return value
+
+    @field_validator("source_url", "rights_url")
+    @classmethod
+    def validate_http_url(cls, value: str) -> str:
+        """출처 링크가 HTTP 또는 HTTPS 주소인지 확인한다."""
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("source URLs must use HTTP or HTTPS")
+        return value
+
+    @field_validator("checked_at")
+    @classmethod
+    def validate_checked_at_utc(cls, value: datetime) -> datetime:
+        """권리 확인 시각이 UTC 오프셋을 가진 시각인지 확인한다."""
+        if value.tzinfo is None or value.utcoffset() != timedelta(0):
+            raise ValueError("checkedAt must be a UTC timestamp")
+        return value.astimezone(timezone.utc)
+
+
+class ArtworkGenerationPendingData(BaseModel):
+    """생성 대기 또는 진행 중 작업 상태."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    task_id: int = Field(alias="taskId", strict=True, gt=0)
+    task_version: int = Field(alias="taskVersion", strict=True, gt=0)
+    status: Literal["PENDING", "RUNNING"]
+
+
+class ArtworkGenerationSucceededData(BaseModel):
+    """이미지 생성과 업로드가 완료된 작업 상태."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    task_id: int = Field(alias="taskId", strict=True, gt=0)
+    task_version: int = Field(alias="taskVersion", strict=True, gt=0)
+    status: Literal["SUCCEEDED"]
+    image: ArtworkImageMetadata
+    source: ArtworkSourceMetadata
+    reuse_allowed: bool = Field(alias="reuseAllowed")
+
+
+class ArtworkGenerationFailedData(BaseModel):
+    """생성에 실패한 작업 상태와 재시도 가능 여부."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    task_id: int = Field(alias="taskId", strict=True, gt=0)
+    task_version: int = Field(alias="taskVersion", strict=True, gt=0)
+    status: Literal["FAILED"]
+    error_code: str = Field(alias="errorCode", min_length=1, max_length=100)
+    retryable: bool
+
+
+ArtworkGenerationData = Annotated[
+    Union[
+        ArtworkGenerationPendingData,
+        ArtworkGenerationSucceededData,
+        ArtworkGenerationFailedData,
+    ],
+    Field(discriminator="status"),
+]
+
+
+class ArtworkGenerationResponse(BaseModel):
+    """명화 생성 접수 및 상태 조회의 성공 응답."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    success: Literal[True]
+    data: ArtworkGenerationData
+
+
+class ArtworkGenerationErrorResponse(BaseModel):
+    """명화 생성 내부 API의 오류 응답."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    success: Literal[False]
+    error: ApiErrorDetail
 
 
 class ExpectedConditionResult(BaseModel):
