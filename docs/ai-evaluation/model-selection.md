@@ -1,6 +1,17 @@
 # 모델 후보와 비교 평가 현황
 
-**최종 갱신:** 2026-11-03
+**최종 갱신:** 2026-11-16
+
+## 평가 범위와 모델 설정
+
+아래 성능 비교는 사진과 인증 조건을 함께 입력하는 사진 판정 평가다. 같은 Gemini/Ollama 설정이 자유목표 분석에도 사용되지만, 이 결과만으로 텍스트 기반 목표 분석의 품질을 판단하지 않는다.
+
+| 기능 | 공급자 선택 | 실제 모델 ID 설정 | 프롬프트 설정 | 평가 상태 |
+|---|---|---|---|---|
+| 사진 인증 조건 판정 | `AI_PROVIDER` | `GEMINI_MODEL` 또는 `OLLAMA_MODEL` | `AI_PROMPT_VERSION` | 이 문서의 사진 평가 결과 참고 |
+| 자유목표 인증 가능 여부 분석 | `AI_PROVIDER` | `GEMINI_MODEL` 또는 `OLLAMA_MODEL` | `AI_GOAL_PROMPT_VERSION` | 별도 정량 평가 전 |
+
+현재 `AI_MODEL_VERSION`은 사진 판정 API 응답의 파이프라인 버전(`photo-verifier-v1`)이다. Gemini 모델 ID나 목표 분석 모델의 평가 버전이 아니다. 모델 비교 기록에는 실제 `GEMINI_MODEL` 또는 `OLLAMA_MODEL` 값과 목표 프롬프트 버전을 함께 적는다.
 
 ## 현재 상태
 

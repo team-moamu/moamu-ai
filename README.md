@@ -151,7 +151,8 @@ moamu-evaluate --manifest data/evaluation/open-images-v7-smoke.jsonl --provider 
 
 ```text
 src/moamu_ai/                  FastAPI 앱, 요청 검증, 판정 서비스, 저장소·모델 어댑터
-src/moamu_ai/prompt_versions/  버전별 고정 프롬프트
+src/moamu_ai/prompt_versions/  사진 판정 프롬프트 버전
+src/moamu_ai/goal_prompt_versions/ 자유목표 분석 프롬프트 버전
 tests/                         API·스키마·모델 어댑터·평가 검증
 data/evaluation/               평가용 JSONL 매니페스트
 docs/ai-evaluation/            모델, 프롬프트, 데이터셋, API 계약 기록

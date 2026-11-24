@@ -1,4 +1,6 @@
-# 프롬프트 실험 기록
+# 사진 판정 프롬프트 실험 기록
+
+이 기록은 사진 속 인증 조건을 판정하는 `photo-verification-*` 프롬프트 전용이다. 자유목표의 사진 인증 가능 여부를 분석하는 프롬프트는 별도 버전 계열이며, 사진 판정 실험 결과와 섞지 않는다. 현재 목표 분석 프롬프트는 [`goal-verifiability-v1`](../../src/moamu_ai/goal_prompt_versions/v1.py)이고, 전체 실험 계획과 결과 상태는 [Notion 실험 기록 초안](notion-experiment-report.md)에서 관리한다.
 
 ## 버전 관리 원칙
 
@@ -11,9 +13,11 @@
 
 ## 코드에서 버전 관리하고 선택하기
 
-각 버전의 고정 지침은 [`src/moamu_ai/prompt_versions/`](../../src/moamu_ai/prompt_versions/) 아래 별도 파일에 보존하고, [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에서 선택한다. 과거 정의를 수정하지 않고 새 버전을 추가한다. `get_prompt_definition(version)`으로 버전 정의를 조회하고, `build_verification_prompt(conditions, version=...)`로 해당 버전의 요청 프롬프트를 만든다.
+각 사진 판정 버전의 고정 지침은 [`src/moamu_ai/prompt_versions/`](../../src/moamu_ai/prompt_versions/) 아래 별도 파일에 보존하고, [`src/moamu_ai/prompts.py`](../../src/moamu_ai/prompts.py)의 `PROMPT_DEFINITIONS`에서 선택한다. 과거 정의를 수정하지 않고 새 버전을 추가한다. `get_prompt_definition(version)`으로 버전 정의를 조회하고, `build_verification_prompt(conditions, version=...)`로 해당 버전의 요청 프롬프트를 만든다.
 
 서비스는 `.env`의 `AI_PROMPT_VERSION`을 사용하며 기본값은 `photo-verification-v4`다. 평가 실행은 `--prompt-version photo-verification-v2`처럼 버전을 지정할 수 있고, 이 값은 `.env` 설정보다 우선한다. 결과 파일에는 실제로 사용한 버전, 프롬프트 템플릿 해시, 조건을 붙인 프롬프트 해시가 함께 기록된다.
+
+목표 분석 프롬프트는 [`src/moamu_ai/goal_prompt_versions/`](../../src/moamu_ai/goal_prompt_versions/)와 [`src/moamu_ai/goal_prompts.py`](../../src/moamu_ai/goal_prompts.py)에서 별도로 관리한다. 서버에서는 `AI_GOAL_PROMPT_VERSION`으로 선택한다. 목표 분석은 사진 데이터셋을 사용하지 않으며, 아직 목표별 정답을 검수한 별도 평가 결과가 없다. 이 프롬프트의 비교 기록은 위 Notion 실험 기록 문서에 추가한다.
 
 v1은 평가용 조건 스냅샷의 ID·코드·유형·설명·필수 여부·정렬 순서를 모델 입력에 포함한다. v2 이후는 ID와 설명만 포함한다. 현재 백엔드 HTTP 요청은 조건 코드와 설명을 받으며, `condition_type`, `required`, `sort_order`는 과거 평가 매니페스트에만 남아 있다. 버전 정의에는 프롬프트 문구뿐 아니라 이 입력 형식 차이도 보존한다.
 
