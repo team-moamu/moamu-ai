@@ -157,3 +157,27 @@ tests/                         API·스키마·모델 어댑터·평가 검증
 data/evaluation/               평가용 JSONL 매니페스트
 docs/ai-evaluation/            모델, 프롬프트, 데이터셋, API 계약 기록
 ```
+
+## 명화 편집 로컬 테스트
+
+`moamu-generate-artwork`는 로컬 파일 또는 S3의 원본 명화를 Gemini 이미지 편집 모델에
+전달하고 결과를 로컬 파일로 저장합니다. 인증 조건은 `--condition`을 반복할 수 있습니다.
+S3 원본을 사용할 때는 `.env`의 S3 설정과 `AI_IMAGE_SOURCE=s3`가 필요합니다.
+
+```bash
+moamu-generate-artwork \
+  --source-s3-key original/woman_reading_a_letter.jpg \
+  --goal '매일 영어 표현을 노트에 적기' \
+  --major '학습' \
+  --middle '어학' \
+  --minor '영어' \
+  --condition '영어 표현이 직접 손글씨로 필기된 노트가 보여야 한다' \
+  --condition '손으로 기록하는 모습이 보여야 한다' \
+  --photo-guide '영어 표현을 적는 손과 노트가 함께 보이도록 촬영' \
+  --output ./artwork-local.jpg
+```
+
+이 명령은 `.env`의 `GEMINI_TOKEN_API_KEY`, `GEMINI_ARTWORK_MODEL`,
+`AI_ARTWORK_PROMPT_VERSION`을 사용해 실제 이미지 편집 API를 호출합니다. `--source`를
+사용하면 로컬 파일을, `--source-s3-key`를 사용하면 S3 원본을 입력으로 읽습니다. 생성 이미지는
+요청한 로컬 경로에만 저장하며, API 사용량에 따른 비용이 발생합니다.
