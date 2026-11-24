@@ -5,6 +5,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+from moamu_ai.artwork_catalog import (
+    ArtworkCatalogEntry,
+    find_artwork_source,
+    select_artwork_source,
+)
 from moamu_ai.config import Settings
 from moamu_ai.errors import ImageStoreConfigurationError
 from moamu_ai.image_sources import S3ImageStore, create_image_store
@@ -18,12 +23,14 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Gemini로 원본 명화를 편집해 로컬 파일로 저장합니다."
     )
-    source = parser.add_mutually_exclusive_group(required=True)
+    source = parser.add_mutually_exclusive_group()
     source.add_argument("--source", type=Path, help="로컬 원본 명화 이미지 경로")
     source.add_argument(
         "--source-s3-key",
         help="S3 원본 명화 객체 키 (예: original/woman_reading_a_letter.jpg)",
     )
+    parser.add_argument("--task-id", type=_positive_int, default=1, help="작업 ID")
+    parser.add_argument("--task-version", type=_positive_int, default=1, help="작업 버전")
     parser.add_argument("--goal", required=True, help="사진으로 인증할 자유목표")
     parser.add_argument("--major", required=True, help="목표 대분류")
     parser.add_argument("--middle", required=True, help="목표 중분류")
@@ -37,6 +44,17 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--photo-guide", required=True, help="이미지 촬영 가이드")
     parser.add_argument("--output", type=Path, required=True, help="생성 이미지를 저장할 경로")
     return parser
+
+
+def _positive_int(value: str) -> int:
+    """양의 정수 CLI 값을 검증한다."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("value must be a positive integer") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be a positive integer")
+    return parsed
 
 
 def run_local_artwork_generation(
@@ -67,8 +85,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     args = create_argument_parser().parse_args(argv)
     request = ArtworkGenerationRequest.model_validate(
         {
-            "taskId": 1,
-            "taskVersion": 1,
+            "taskId": args.task_id,
+            "taskVersion": args.task_version,
             "expiresAt": datetime.now(timezone.utc) + timedelta(minutes=2),
             "normalizedGoal": args.goal,
             "categoryPath": {
@@ -87,15 +105,22 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         timeout_seconds=settings.ai_artwork_provider_timeout_seconds,
         prompt_version=settings.ai_artwork_prompt_version,
     )
+    selected_source: Optional[ArtworkCatalogEntry] = None
+    source_key = args.source_s3_key
     if args.source is not None:
         result = run_local_artwork_generation(args.source, request, args.output, editor)
     else:
+        if source_key is None:
+            selected_source = select_artwork_source(request)
+            source_key = selected_source.s3_key
+        else:
+            selected_source = find_artwork_source(source_key)
         image_store = create_image_store(settings)
         if not isinstance(image_store, S3ImageStore):
             raise ImageStoreConfigurationError(
                 "S3 source keys require AI_IMAGE_SOURCE=s3"
             )
-        with image_store.open_image(args.source_s3_key) as source_path:
+        with image_store.open_image(source_key) as source_path:
             result = run_local_artwork_generation(
                 source_path, request, args.output, editor
             )
@@ -106,10 +131,29 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
                 "contentType": result.content_type,
                 "sizeBytes": len(result.image_bytes),
                 "output": str(args.output),
+                "sourceKey": source_key,
+                "source": _format_source_metadata(selected_source),
             },
             ensure_ascii=False,
         )
     )
+
+
+def _format_source_metadata(
+    source: Optional[ArtworkCatalogEntry],
+) -> Optional[dict[str, str]]:
+    """CLI 출력에 선택한 작품과 권리 근거를 표시한다."""
+    if source is None:
+        return None
+    return {
+        "workId": source.work_id,
+        "title": source.title,
+        "artist": source.artist,
+        "key": source.s3_key,
+        "rightsCode": source.rights_code,
+        "sourceUrl": source.source_url,
+        "rightsUrl": source.rights_url,
+    }
 
 
 if __name__ == "__main__":

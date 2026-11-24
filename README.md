@@ -166,7 +166,7 @@ S3 원본을 사용할 때는 `.env`의 S3 설정과 `AI_IMAGE_SOURCE=s3`가 필
 
 ```bash
 moamu-generate-artwork \
-  --source-s3-key original/woman_reading_a_letter.jpg \
+  --task-id 91 \
   --goal '매일 영어 표현을 노트에 적기' \
   --major '학습' \
   --middle '어학' \
@@ -179,5 +179,8 @@ moamu-generate-artwork \
 
 이 명령은 `.env`의 `GEMINI_TOKEN_API_KEY`, `GEMINI_ARTWORK_MODEL`,
 `AI_ARTWORK_PROMPT_VERSION`을 사용해 실제 이미지 편집 API를 호출합니다. `--source`를
-사용하면 로컬 파일을, `--source-s3-key`를 사용하면 S3 원본을 입력으로 읽습니다. 생성 이미지는
-요청한 로컬 경로에만 저장하며, API 사용량에 따른 비용이 발생합니다.
+사용하면 로컬 파일을, `--source-s3-key`를 사용하면 지정한 S3 원본을 입력으로 읽습니다.
+둘 다 생략하면 검증된 S3 작품 카탈로그에서 작업 ID·버전에 따라 원본을 고릅니다. 같은 작업
+ID·버전은 같은 원본을 선택하고, 새 작업은 작품 목록을 순환합니다. 특정 원본으로 재현하려면
+`--source-s3-key`를 지정합니다. 생성 이미지는 요청한 로컬 경로에만 저장하며 API 사용량에 따른
+비용이 발생합니다.
