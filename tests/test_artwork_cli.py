@@ -112,6 +112,8 @@ def test_cli_builds_request_and_prints_local_output(monkeypatch, tmp_path: Path,
         "contentType": "image/jpeg",
         "sizeBytes": len(result.image_bytes),
         "output": str(output),
+        "sourceKey": None,
+        "source": None,
     }
 
 
@@ -183,3 +185,74 @@ def test_cli_reads_s3_source_and_saves_result_locally(
     assert created["image_key"] == "original/woman_reading_a_letter.jpg"
     assert created["source"] == source
     assert json.loads(capsys.readouterr().out)["output"] == str(output)
+
+
+def test_cli_selects_a_catalog_source_when_source_is_not_specified(
+    monkeypatch, tmp_path: Path, capsys
+):
+    source = tmp_path / "selected-source.jpg"
+    source.write_bytes(b"source")
+    output = tmp_path / "generated.jpg"
+    result = ArtworkEditResult(
+        image_bytes=b"\xff\xd8\xffgenerated",
+        content_type="image/jpeg",
+        model="gemini-test-image",
+        latency_ms=12.0,
+    )
+    selected = {}
+
+    class FakeS3ImageStore:
+        @contextmanager
+        def open_image(self, image_key):
+            selected["image_key"] = image_key
+            yield source
+
+    class FakeEditor:
+        def __init__(self, **kwargs):
+            pass
+
+        def edit(self, image_path, request):
+            selected["request"] = request
+            return result
+
+    class FakeSettings:
+        gemini_token_api_key = None
+        gemini_artwork_model = "gemini-test-image"
+        ai_artwork_provider_timeout_seconds = 90.0
+        ai_artwork_prompt_version = "artwork-edit-v1"
+
+    monkeypatch.setattr("moamu_ai.artwork_cli.Settings", FakeSettings)
+    monkeypatch.setattr("moamu_ai.artwork_cli.GeminiArtworkEditor", FakeEditor)
+    monkeypatch.setattr("moamu_ai.artwork_cli.S3ImageStore", FakeS3ImageStore)
+    monkeypatch.setattr(
+        "moamu_ai.artwork_cli.create_image_store",
+        lambda settings: FakeS3ImageStore(),
+    )
+
+    main(
+        [
+            "--task-id",
+            "2",
+            "--goal",
+            "매일 기타 연습하기",
+            "--major",
+            "취미",
+            "--middle",
+            "음악",
+            "--minor",
+            "기타",
+            "--condition",
+            "기타가 보여야 한다",
+            "--photo-guide",
+            "기타를 연주하는 손이 보여야 한다",
+            "--output",
+            str(output),
+        ]
+    )
+
+    response = json.loads(capsys.readouterr().out)
+    assert output.read_bytes() == result.image_bytes
+    assert selected["image_key"] == "original/the_little_schoolmistress.jpg"
+    assert selected["request"].task_id == 2
+    assert response["source"]["title"] == "The Little Schoolmistress"
+    assert response["sourceKey"] == "original/the_little_schoolmistress.jpg"
