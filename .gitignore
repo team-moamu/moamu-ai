@@ -11,6 +11,7 @@ __pycache__/
 htmlcov/
 data/evaluation/images/
 data/evaluation/results/
+data/artwork-tests/
 *.egg-info/
 dist/
 build/

@@ -131,6 +131,35 @@ def test_settings_selects_a_goal_prompt_version_from_the_environment(monkeypatch
     assert settings.ai_goal_prompt_version == "goal-verifiability-v1"
 
 
+def test_settings_reads_artwork_generation_model_and_prompt(monkeypatch):
+    monkeypatch.setenv("GEMINI_ARTWORK_MODEL", "gemini-3.1-flash-image")
+    monkeypatch.setenv("AI_ARTWORK_PROMPT_VERSION", "artwork-edit-v1")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.gemini_artwork_model == "gemini-3.1-flash-image"
+    assert settings.ai_artwork_prompt_version == "artwork-edit-v1"
+
+
+def test_settings_defaults_artwork_generation_to_gemini_image_model(monkeypatch):
+    monkeypatch.delenv("GEMINI_ARTWORK_MODEL", raising=False)
+    monkeypatch.delenv("AI_ARTWORK_PROMPT_VERSION", raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.gemini_artwork_model == "gemini-3.1-flash-image"
+    assert settings.ai_artwork_prompt_version == "artwork-edit-v1"
+
+
+def test_settings_rejects_an_unknown_artwork_prompt_version(monkeypatch):
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("AI_ARTWORK_PROMPT_VERSION", "artwork-edit-v99")
+
+    with pytest.raises(ValidationError, match="Unsupported artwork prompt version"):
+        Settings(_env_file=None)
+
+
 def test_settings_selects_gemini_thinking_level_from_the_environment(monkeypatch):
     """환경 변수로 Gemini 추론 단계를 선택하는지 확인한다."""
     monkeypatch.setenv("GEMINI_THINKING_LEVEL", "low")
