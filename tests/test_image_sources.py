@@ -7,7 +7,12 @@ import pytest
 from pydantic import SecretStr
 
 from moamu_ai.config import Settings
-from moamu_ai.errors import ImageFetchFailedError, ImageStoreConfigurationError
+from moamu_ai.errors import (
+    ImageFetchFailedError,
+    ImageObjectAlreadyExistsError,
+    ImageStoreConfigurationError,
+    ImageUploadFailedError,
+)
 from moamu_ai.image_sources import LocalImageStore, S3ImageStore, create_image_store
 
 
@@ -59,6 +64,92 @@ def test_s3_image_store_maps_fetch_failures_to_contract_error():
     with pytest.raises(ImageFetchFailedError, match="could not be fetched"):
         with S3ImageStore(bucket="bucket", client=FailingS3Client()).open_image("proof.jpg"):
             pass
+
+
+def test_s3_image_store_uploads_new_objects_without_public_acl():
+    """생성 이미지를 지정 MIME으로 올리고 공개 ACL을 설정하지 않는다."""
+    calls = []
+
+    class FakeS3Client:
+        """S3 업로드 인자를 기록하는 테스트 클라이언트."""
+
+        def put_object(self, **kwargs):
+            """업로드 인자를 테스트에서 확인할 수 있게 저장한다."""
+            calls.append(kwargs)
+
+    store = S3ImageStore(bucket="bucket", client=FakeS3Client())
+
+    store.upload_image("generated-artworks/91/1/result.jpg", b"image", "image/jpeg")
+
+    assert calls == [
+        {
+            "Bucket": "bucket",
+            "Key": "generated-artworks/91/1/result.jpg",
+            "Body": b"image",
+            "ContentType": "image/jpeg",
+            "IfNoneMatch": "*",
+        }
+    ]
+
+
+def test_s3_image_store_returns_none_for_missing_object():
+    """결과 객체가 아직 없으면 업로드 전 상태로 None을 반환한다."""
+    class MissingObjectError(Exception):
+        """S3의 404 응답 형식을 흉내 낸다."""
+
+        response = {
+            "Error": {"Code": "NoSuchKey"},
+            "ResponseMetadata": {"HTTPStatusCode": 404},
+        }
+
+    class FakeS3Client:
+        """결과 객체 미존재 응답을 제공하는 테스트 클라이언트."""
+
+        def get_object(self, **kwargs):
+            """요청 객체가 없다는 오류를 발생시킨다."""
+            raise MissingObjectError()
+
+    assert S3ImageStore(bucket="bucket", client=FakeS3Client()).get_image_if_exists(
+        "generated-artworks/91/1/result.jpg"
+    ) is None
+
+
+def test_s3_image_store_maps_conditional_upload_conflict():
+    """이미 있는 결과 객체에 대한 조건부 업로드 충돌을 구분한다."""
+    class PreconditionFailedError(Exception):
+        """S3의 조건부 생성 충돌 응답을 흉내 낸다."""
+
+        response = {
+            "Error": {"Code": "PreconditionFailed"},
+            "ResponseMetadata": {"HTTPStatusCode": 412},
+        }
+
+    class FakeS3Client:
+        """조건부 업로드 충돌을 반환하는 테스트 클라이언트."""
+
+        def put_object(self, **kwargs):
+            """객체가 이미 있을 때의 S3 오류를 발생시킨다."""
+            raise PreconditionFailedError()
+
+    with pytest.raises(ImageObjectAlreadyExistsError):
+        S3ImageStore(bucket="bucket", client=FakeS3Client()).upload_image(
+            "generated-artworks/91/1/result.jpg", b"image", "image/jpeg"
+        )
+
+
+def test_s3_image_store_maps_upload_failure():
+    """일반 S3 업로드 실패는 내부 원인을 노출하지 않는 오류로 변환한다."""
+    class FailingS3Client:
+        """비공개 AWS 오류를 재현하는 테스트 클라이언트."""
+
+        def put_object(self, **kwargs):
+            """테스트용 S3 업로드 예외를 발생시킨다."""
+            raise RuntimeError("private AWS detail")
+
+    with pytest.raises(ImageUploadFailedError, match="could not be uploaded"):
+        S3ImageStore(bucket="bucket", client=FailingS3Client()).upload_image(
+            "generated-artworks/91/1/result.jpg", b"image", "image/jpeg"
+        )
 
 
 def test_create_image_store_passes_explicit_aws_credentials_and_session_token(monkeypatch):

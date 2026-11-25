@@ -3,15 +3,17 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Protocol
+from typing import Optional, Protocol
 
 from moamu_ai.errors import (
     ImageFetchFailedError,
     ImageNotFoundError,
+    ImageObjectAlreadyExistsError,
     ImagePathNotAllowedError,
     ImageRootUnavailableError,
     ImageStoreConfigurationError,
     ImageUnreadableError,
+    ImageUploadFailedError,
 )
 from moamu_ai.image_paths import resolve_image_path
 
@@ -97,6 +99,48 @@ class S3ImageStore:
             finally:
                 temporary_path.unlink(missing_ok=True)
 
+    def get_image_if_exists(self, image_key: str) -> Optional[tuple[bytes, str]]:
+        """이미 존재하는 S3 이미지의 바이트와 MIME을 반환한다."""
+        if self.client is None:
+            raise ImageStoreConfigurationError("S3 client is not configured")
+
+        response = None
+        body = None
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=image_key)
+            body = response["Body"]
+            return body.read(), response.get("ContentType", "")
+        except Exception as exc:
+            if _is_not_found_error(exc):
+                return None
+            raise ImageFetchFailedError("image object could not be fetched") from exc
+        finally:
+            if body is not None:
+                try:
+                    body.close()
+                except Exception:
+                    pass
+
+    def upload_image(self, image_key: str, image_bytes: bytes, content_type: str) -> None:
+        """S3에 비공개 생성 이미지를 새 객체로만 저장한다."""
+        if self.client is None:
+            raise ImageStoreConfigurationError("S3 client is not configured")
+
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=image_key,
+                Body=image_bytes,
+                ContentType=content_type,
+                IfNoneMatch="*",
+            )
+        except Exception as exc:
+            if _is_precondition_failed(exc):
+                raise ImageObjectAlreadyExistsError(
+                    "image object already exists and cannot be overwritten"
+                ) from exc
+            raise ImageUploadFailedError("image object could not be uploaded") from exc
+
 
 def create_image_store(settings) -> ImageStore:
     """설정에 지정된 로컬 또는 S3 이미지 저장소를 생성한다.
@@ -144,3 +188,19 @@ def create_image_store(settings) -> ImageStore:
     except Exception as exc:
         raise ImageStoreConfigurationError("S3 client could not be configured") from exc
     return S3ImageStore(bucket=settings.s3_bucket, client=client)
+
+
+def _is_not_found_error(error: Exception) -> bool:
+    """S3 오류가 객체 미존재를 뜻하는지 확인한다."""
+    response = getattr(error, "response", {})
+    code = response.get("Error", {}).get("Code")
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in {"NoSuchKey", "NotFound", "404"} or status == 404
+
+
+def _is_precondition_failed(error: Exception) -> bool:
+    """S3 오류가 조건부 업로드의 기존 객체 충돌인지 확인한다."""
+    response = getattr(error, "response", {})
+    code = response.get("Error", {}).get("Code")
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in {"PreconditionFailed", "412"} or status == 412

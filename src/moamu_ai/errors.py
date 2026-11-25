@@ -22,6 +22,22 @@ class ImageFetchFailedError(PhotoVerificationError):
     """저장소에서 인증 이미지를 가져오지 못했을 때 발생한다."""
 
 
+class ImageUploadFailedError(PhotoVerificationError):
+    """생성 이미지를 객체 저장소에 올리지 못했을 때 발생한다."""
+
+
+class ImageObjectAlreadyExistsError(PhotoVerificationError):
+    """동일한 결과 객체 키가 이미 저장되어 덮어쓸 수 없을 때 발생한다."""
+
+
+class ArtworkGenerationExpiredError(PhotoVerificationError):
+    """명화 생성 작업의 처리 기한이 지났을 때 발생한다."""
+
+
+class ArtworkSourceUnavailableError(PhotoVerificationError):
+    """저장된 작업 원본을 카탈로그에서 찾을 수 없을 때 발생한다."""
+
+
 class UnsupportedImageError(PhotoVerificationError):
     """인증에 사용할 수 없는 이미지 형식일 때 발생한다."""
 
