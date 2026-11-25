@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Callable, Optional, Protocol
 
 from moamu_ai.schemas import (
+    ArtworkGenerationRequest,
     ConditionResult,
     ConditionSnapshot,
     GoalAnalysisOutput,
@@ -30,6 +31,16 @@ class InferenceResult:
     usage: InferenceUsage
 
 
+@dataclass(frozen=True)
+class ArtworkEditResult:
+    """명화 편집 결과 이미지와 공급자 정보를 보관한다."""
+
+    image_bytes: bytes
+    content_type: str
+    model: str
+    latency_ms: float
+
+
 class PhotoJudge(Protocol):
     """이미지와 인증 조건을 받아 판정하는 모델 인터페이스."""
 
@@ -42,6 +53,13 @@ class GoalAnalyzer(Protocol):
 
     def analyze(self, request: GoalVerifiabilityRequest) -> GoalAnalysisOutput:
         """목표 분석 결과를 반환한다."""
+
+
+class ArtworkEditor(Protocol):
+    """원본 명화와 도전 정보를 받아 편집 이미지를 만드는 공급자 인터페이스."""
+
+    def edit(self, image_path: Path, request: ArtworkGenerationRequest) -> ArtworkEditResult:
+        """원본 명화를 목표와 인증 기준에 맞게 편집한다."""
 
 
 JudgeFactory = Callable[[], PhotoJudge]
