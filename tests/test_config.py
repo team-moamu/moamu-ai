@@ -141,6 +141,18 @@ def test_settings_reads_artwork_generation_model_and_prompt(monkeypatch):
     assert settings.ai_artwork_prompt_version == "artwork-edit-v1"
 
 
+def test_settings_reads_artwork_task_database_and_internal_token(monkeypatch, tmp_path):
+    """명화 API의 작업 DB 경로와 내부 인증 토큰을 환경 변수에서 읽는다."""
+    database_path = tmp_path / "artwork-tasks.sqlite3"
+    monkeypatch.setenv("AI_ARTWORK_TASK_DB_PATH", str(database_path))
+    monkeypatch.setenv("AI_INTERNAL_API_TOKEN", "test-internal-token")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.ai_artwork_task_db_path == database_path
+    assert settings.ai_internal_api_token.get_secret_value() == "test-internal-token"
+
+
 def test_settings_defaults_artwork_generation_to_gemini_image_model(monkeypatch):
     monkeypatch.delenv("GEMINI_ARTWORK_MODEL", raising=False)
     monkeypatch.delenv("AI_ARTWORK_PROMPT_VERSION", raising=False)

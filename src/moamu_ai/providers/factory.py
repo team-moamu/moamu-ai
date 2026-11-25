@@ -1,8 +1,29 @@
 from moamu_ai.config import Settings
 from moamu_ai.errors import ProviderConfigurationError
-from moamu_ai.providers.base import GoalAnalyzer, PhotoJudge
+from moamu_ai.providers.base import ArtworkEditor, GoalAnalyzer, PhotoJudge
 from moamu_ai.providers.gemini import GeminiGoalAnalyzer, GeminiPhotoJudge
+from moamu_ai.providers.gemini_artwork import GeminiArtworkEditor
 from moamu_ai.providers.ollama import OllamaGoalAnalyzer, OllamaPhotoJudge
+
+
+def create_artwork_editor(settings: Settings) -> ArtworkEditor:
+    """Gemini 이미지 편집 모델과 현재 설정을 연결한다.
+
+    Args:
+        settings: API 키, 이미지 편집 모델과 프롬프트 설정.
+
+    Returns:
+        명화 편집에 사용할 Gemini 편집기.
+
+    Raises:
+        ProviderConfigurationError: Gemini API 키가 설정되지 않은 경우.
+    """
+    return GeminiArtworkEditor(
+        api_key=settings.gemini_token_api_key,
+        model=settings.gemini_artwork_model,
+        timeout_seconds=settings.ai_artwork_provider_timeout_seconds,
+        prompt_version=settings.ai_artwork_prompt_version,
+    )
 
 
 def create_photo_judge(settings: Settings) -> PhotoJudge:

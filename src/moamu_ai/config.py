@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     ai_prompt_version: str = DEFAULT_PROMPT_VERSION
     ai_goal_prompt_version: str = DEFAULT_GOAL_PROMPT_VERSION
     ai_artwork_prompt_version: str = DEFAULT_ARTWORK_PROMPT_VERSION
+    ai_artwork_task_db_path: Path = Path("./data/artwork-generation-tasks.sqlite3")
+    ai_internal_api_token: Optional[SecretStr] = None
     gemini_token_api_key: Optional[SecretStr] = None
     gemini_model: str = "gemini-3.5-flash-lite"
     gemini_artwork_model: str = "gemini-3.1-flash-image"
