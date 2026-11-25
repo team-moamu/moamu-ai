@@ -3,9 +3,12 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 from moamu_ai.artwork_catalog import ARTWORK_CATALOG
 from moamu_ai.artwork_generation_service import ArtworkGenerationProcessor
 from moamu_ai.artwork_task_store import ArtworkGenerationTaskStore
+from moamu_ai.errors import ArtworkSourceUnavailableError
 from moamu_ai.providers.base import ArtworkEditResult
 from moamu_ai.schemas import ArtworkGenerationRequest, ArtworkImageMetadata
 
@@ -122,3 +125,21 @@ def test_process_recovers_an_object_uploaded_before_worker_restart(tmp_path):
 
     assert task_store.get(91, 1).status == "SUCCEEDED"
     assert len(editor.calls) == 0
+
+
+def test_process_reports_missing_rights_checked_source_as_unavailable(tmp_path):
+    """사용 가능한 권리 확인 원본이 없으면 작업을 재시도 불가 실패로 분류한다."""
+    source_path = tmp_path / "source.jpg"
+    source_path.write_bytes(b"source painting")
+    task_store = ArtworkGenerationTaskStore(tmp_path / "tasks.sqlite3")
+    task_store.accept(request_payload())
+    claimed_task = task_store.claim(91, 1)
+    processor = ArtworkGenerationProcessor(
+        task_store,
+        FakeImageStore(source_path),
+        FakeArtworkEditor(),
+        catalog=(),
+    )
+
+    with pytest.raises(ArtworkSourceUnavailableError):
+        processor.process(claimed_task)

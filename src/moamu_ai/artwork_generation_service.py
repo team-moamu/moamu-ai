@@ -96,7 +96,12 @@ class ArtworkGenerationProcessor:
     ) -> tuple[ArtworkCatalogEntry, ArtworkSourceMetadata]:
         """작업에 이미 저장된 원본을 쓰거나 카탈로그에서 하나를 선택한다."""
         if task.source is None:
-            entry = select_artwork_source(task.request, self.catalog)
+            try:
+                entry = select_artwork_source(task.request, self.catalog)
+            except ValueError as exc:
+                raise ArtworkSourceUnavailableError(
+                    "no rights-checked artwork source is available"
+                ) from exc
             source = self.task_store.save_source(
                 task.request.task_id,
                 task.request.task_version,
