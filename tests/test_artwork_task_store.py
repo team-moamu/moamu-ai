@@ -65,6 +65,29 @@ def test_accept_returns_same_task_for_same_key_and_payload(tmp_path):
     assert second.request.task_version == 1
 
 
+def test_accept_returns_existing_task_after_its_deadline(monkeypatch, tmp_path):
+    """이미 접수된 작업의 재전송은 기한이 지났어도 기존 작업을 반환한다."""
+    import moamu_ai.artwork_task_store as task_store_module
+
+    request = ArtworkGenerationRequest.model_validate(request_payload())
+    store = ArtworkGenerationTaskStore(tmp_path / "artwork-tasks.sqlite3")
+    store.accept(request)
+
+    class AfterDeadline(datetime):
+        """작업 기한 이후 시각을 반환한다."""
+
+        @classmethod
+        def now(cls, tz=None):
+            return request.expires_at + timedelta(seconds=1)
+
+    monkeypatch.setattr(task_store_module, "datetime", AfterDeadline)
+
+    task, created = store.accept(request)
+
+    assert created is False
+    assert task.status == "PENDING"
+
+
 def test_accept_rejects_same_key_with_different_payload(tmp_path):
     """같은 작업 키에 다른 본문을 보내면 충돌로 거부한다."""
     store = ArtworkGenerationTaskStore(tmp_path / "artwork-tasks.sqlite3")

@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from moamu_ai.schemas import (
     ArtworkGenerationRequest,
@@ -66,7 +66,7 @@ class ArtworkGenerationTask:
 class ArtworkGenerationTaskStore:
     """SQLite 파일에 명화 작업을 멱등하게 저장한다."""
 
-    def __init__(self, database_path: Path | str):
+    def __init__(self, database_path: Union[Path, str]):
         """작업 데이터베이스를 만들거나 기존 데이터베이스를 연다."""
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,9 +128,6 @@ class ArtworkGenerationTaskStore:
         self, request: ArtworkGenerationRequest
     ) -> tuple[ArtworkGenerationTask, bool]:
         """작업을 영속화하고 동일 요청이면 기존 작업을 반환한다."""
-        if request.expires_at <= datetime.now(timezone.utc):
-            raise ArtworkTaskExpiredError("artwork generation request has expired")
-
         request_json = self._request_json(request)
         request_hash = hashlib.sha256(request_json.encode("utf-8")).hexdigest()
         now = self._now()
@@ -151,6 +148,10 @@ class ArtworkGenerationTaskStore:
                     )
                 connection.commit()
                 return self._task_from_row(row), False
+
+            if request.expires_at <= datetime.now(timezone.utc):
+                connection.rollback()
+                raise ArtworkTaskExpiredError("artwork generation request has expired")
 
             connection.execute(
                 """
