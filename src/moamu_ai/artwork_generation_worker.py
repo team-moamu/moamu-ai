@@ -99,11 +99,20 @@ class ArtworkGenerationWorker:
                 InvalidModelOutputError, ProviderConfigurationError):
             self._mark_failed(task_id, task_version, "ARTWORK_GENERATION_FAILED", False)
         except Exception as exc:
+            cause = exc.__cause__
+            provider_status_code = getattr(cause, "status_code", None)
+            if not isinstance(provider_status_code, int):
+                provider_status_code = getattr(cause, "code", None)
+            if not isinstance(provider_status_code, int):
+                provider_status_code = "unknown"
             logger.error(
-                "artwork_generation_failed taskId=%s taskVersion=%s errorType=%s",
+                "artwork_generation_failed taskId=%s taskVersion=%s "
+                "errorType=%s causeType=%s providerStatusCode=%s",
                 task_id,
                 task_version,
                 type(exc).__name__,
+                type(cause).__name__ if cause is not None else "unknown",
+                provider_status_code,
             )
             self._mark_failed(task_id, task_version, "ARTWORK_GENERATION_FAILED", True)
         finally:
