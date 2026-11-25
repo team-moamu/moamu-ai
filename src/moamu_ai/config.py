@@ -4,6 +4,10 @@ from typing import Literal, Optional
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from moamu_ai.artwork_prompts import (
+    DEFAULT_ARTWORK_PROMPT_VERSION,
+    get_artwork_prompt_definition,
+)
 from moamu_ai.goal_prompts import (
     DEFAULT_GOAL_PROMPT_VERSION,
     get_goal_prompt_definition,
@@ -28,8 +32,10 @@ class Settings(BaseSettings):
     ai_image_root: Path = Path("./data/images")
     ai_prompt_version: str = DEFAULT_PROMPT_VERSION
     ai_goal_prompt_version: str = DEFAULT_GOAL_PROMPT_VERSION
+    ai_artwork_prompt_version: str = DEFAULT_ARTWORK_PROMPT_VERSION
     gemini_token_api_key: Optional[SecretStr] = None
     gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_artwork_model: str = "gemini-3.1-flash-image"
     gemini_thinking_level: Optional[Literal["minimal", "low", "medium", "high"]] = None
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3-vl:2b"
@@ -48,6 +54,7 @@ class Settings(BaseSettings):
     aws_region: str = "ap-northeast-2"
     s3_bucket: Optional[str] = None
     ai_provider_timeout_seconds: float = Field(default=45.0, gt=0, le=300)
+    ai_artwork_provider_timeout_seconds: float = Field(default=90.0, gt=0, le=120)
     gemini_max_live_calls_per_run: int = Field(default=6, ge=1, le=6)
 
     @field_validator("ai_prompt_version")
@@ -62,4 +69,11 @@ class Settings(BaseSettings):
     def validate_goal_prompt_version(cls, value: str) -> str:
         """설정한 자유목표 분석 프롬프트 버전이 등록되어 있는지 확인한다."""
         get_goal_prompt_definition(value)
+        return value
+
+    @field_validator("ai_artwork_prompt_version")
+    @classmethod
+    def validate_artwork_prompt_version(cls, value: str) -> str:
+        """설정한 명화 편집 프롬프트 버전이 등록되어 있는지 확인한다."""
+        get_artwork_prompt_definition(value)
         return value
