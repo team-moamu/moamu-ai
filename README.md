@@ -184,3 +184,53 @@ moamu-generate-artwork \
 ID·버전은 같은 원본을 선택하고, 새 작업은 작품 목록을 순환합니다. 특정 원본으로 재현하려면
 `--source-s3-key`를 지정합니다. 생성 이미지는 요청한 로컬 경로에만 저장하며 API 사용량에 따른
 비용이 발생합니다.
+
+## 비동기 명화 생성 API
+
+백엔드는 `POST /internal/artwork-generations`로 작업을 접수하고, `GET
+/internal/artwork-generations/{taskId}/versions/{taskVersion}`를 반복 호출해 결과를
+조회합니다. 생성 API는 `Authorization: Bearer <token>`을 요구합니다. AI 서버의
+`AI_INTERNAL_API_TOKEN`과 백엔드 호출 토큰에 같은 값을 설정하세요. 토큰이 비어 있거나
+서로 다르면 요청이 거부됩니다.
+
+접수 API는 요청을 SQLite 파일에 먼저 저장하고 `202 Accepted`와 `PENDING`을 반환합니다.
+이후 워커가 검증된 카탈로그 원본을 선택해 Gemini 이미지 편집을 호출하고 비공개 S3에
+저장합니다. 실제 POST 요청은 유료 Gemini 이미지 생성을 시작합니다.
+
+```bash
+export AI_INTERNAL_API_TOKEN='AI 서버 설정과 같은 내부 토큰'
+TASK_ID="$(date +%s)"
+EXPIRES_AT="$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat().replace("+00:00", "Z"))')"
+
+curl --request POST \
+  --url 'http://127.0.0.1:8000/internal/artwork-generations' \
+  --header "Authorization: Bearer ${AI_INTERNAL_API_TOKEN}" \
+  --header 'Content-Type: application/json' \
+  --data-binary @- <<JSON
+{
+  "taskId": ${TASK_ID},
+  "taskVersion": 1,
+  "expiresAt": "${EXPIRES_AT}",
+  "normalizedGoal": "매일 물 마시기",
+  "categoryPath": {
+    "major": "건강",
+    "middle": "생활 습관",
+    "minor": "수분 섭취"
+  },
+  "conditions": ["물을 마신 활동 흔적이 사진에서 확인되어야 합니다."],
+  "photoGuide": "물과 컵이 보이도록 촬영해 주세요."
+}
+JSON
+
+curl --request GET \
+  --url "http://127.0.0.1:8000/internal/artwork-generations/${TASK_ID}/versions/1" \
+  --header "Authorization: Bearer ${AI_INTERNAL_API_TOKEN}"
+```
+
+상태는 `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`입니다. 성공 시 S3 키와 이미지 메타데이터,
+원본 작품의 권리 정보를 반환합니다. 실패 시 `errorCode`와 `retryable`을 반환하며 자동으로
+이미지를 재생성하지 않습니다. 재시도는 백엔드가 새 `taskVersion`을 보내야 합니다.
+
+작업 상태는 `AI_ARTWORK_TASK_DB_PATH`의 SQLite 파일에 저장됩니다. 서버를 재시작해도 작업을
+복구하려면 해당 경로를 영속 볼륨에 연결하세요. 현재 구현은 SQLite 작업 큐를 사용하므로
+AI 서버를 단일 프로세스로 실행해야 합니다.
